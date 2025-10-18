@@ -23,6 +23,38 @@ const Index = () => {
   const [selectedSignal, setSelectedSignal] = useState<any>(null);
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
 
+  // Manejar el botón atrás del navegador para cerrar el diálogo
+  useEffect(() => {
+    const handlePopState = () => {
+      if (chartDialogOpen) {
+        setChartDialogOpen(false);
+        setSelectedSignal(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [chartDialogOpen]);
+
+  // Agregar entrada al historial cuando se abre el diálogo
+  useEffect(() => {
+    if (chartDialogOpen) {
+      window.history.pushState({ modal: true }, '');
+    }
+  }, [chartDialogOpen]);
+
+  // Función para cerrar el diálogo
+  const handleCloseChart = (open: boolean) => {
+    if (!open && chartDialogOpen) {
+      // Si estamos cerrando el diálogo, retroceder en el historial
+      window.history.back();
+    }
+    setChartDialogOpen(open);
+    if (!open) {
+      setSelectedSignal(null);
+    }
+  };
+
   // Verificar autenticación
   useEffect(() => {
     // Configurar listener de auth PRIMERO
@@ -177,7 +209,7 @@ const Index = () => {
       {selectedSignal && (
         <StockChartDialog
           open={chartDialogOpen}
-          onOpenChange={setChartDialogOpen}
+          onOpenChange={handleCloseChart}
           assetName={selectedSignal.assets.name}
           assetSymbol={selectedSignal.assets.symbol}
           currentPrice={parseFloat(selectedSignal.price)}
