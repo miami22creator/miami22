@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Bar, Cell } from "recharts";
 import { useState, useMemo } from "react";
 import { format, subDays, subHours, subWeeks } from "date-fns";
 import { es } from "date-fns/locale";
@@ -26,7 +26,7 @@ export const StockChartDialog = ({
 }: StockChartDialogProps) => {
   const [timeInterval, setTimeInterval] = useState<TimeInterval>("day");
 
-  // Generar datos históricos simulados basados en el precio actual
+  // Generar datos históricos simulados basados en el precio actual con velas japonesas
   const generateHistoricalData = (interval: TimeInterval) => {
     const data = [];
     const now = new Date();
@@ -54,21 +54,74 @@ export const StockChartDialog = ({
 
     // Calcular el precio inicial basado en el cambio porcentual
     const initialPrice = currentPrice / (1 + changePercent / 100);
+    let previousClose = initialPrice;
     
     for (let i = periods - 1; i >= 0; i--) {
       const date = subtractFunction(now, i);
-      // Generar variación aleatoria pero suavizada
-      const randomFactor = 1 + (Math.random() - 0.5) * 0.05;
+      
+      // Generar progreso hacia el precio actual
       const progress = (periods - i) / periods;
-      const price = initialPrice + (currentPrice - initialPrice) * progress * randomFactor;
+      const targetPrice = initialPrice + (currentPrice - initialPrice) * progress;
+      
+      // Generar variaciones aleatorias para OHLC (Open, High, Low, Close)
+      const volatility = targetPrice * 0.02; // 2% de volatilidad
+      const open = previousClose;
+      const close = targetPrice + (Math.random() - 0.5) * volatility;
+      const high = Math.max(open, close) + Math.random() * volatility * 0.5;
+      const low = Math.min(open, close) - Math.random() * volatility * 0.5;
       
       data.push({
         time: dateFormatter(date),
-        price: parseFloat(price.toFixed(2)),
+        open: parseFloat(open.toFixed(2)),
+        high: parseFloat(high.toFixed(2)),
+        low: parseFloat(low.toFixed(2)),
+        close: parseFloat(close.toFixed(2)),
       });
+      
+      previousClose = close;
     }
 
     return data;
+  };
+
+  // Componente personalizado para renderizar las velas japonesas
+  const Candlestick = (props: any) => {
+    const { x, y, width, height, payload } = props;
+    const isGrowing = payload.close > payload.open;
+    const color = isGrowing ? "hsl(var(--success))" : "hsl(var(--destructive))";
+    const ratio = Math.abs(height) / (payload.high - payload.low);
+    
+    return (
+      <g>
+        {/* Mecha superior */}
+        <line
+          x1={x + width / 2}
+          y1={y}
+          x2={x + width / 2}
+          y2={y + (payload.high - Math.max(payload.open, payload.close)) * ratio}
+          stroke={color}
+          strokeWidth={1}
+        />
+        {/* Cuerpo de la vela */}
+        <rect
+          x={x}
+          y={y + (payload.high - Math.max(payload.open, payload.close)) * ratio}
+          width={width}
+          height={Math.abs((payload.close - payload.open) * ratio)}
+          fill={color}
+          stroke={color}
+        />
+        {/* Mecha inferior */}
+        <line
+          x1={x + width / 2}
+          y1={y + height}
+          x2={x + width / 2}
+          y2={y + (payload.high - Math.min(payload.open, payload.close)) * ratio}
+          stroke={color}
+          strokeWidth={1}
+        />
+      </g>
+    );
   };
 
   const chartData = useMemo(() => generateHistoricalData(timeInterval), [timeInterval, currentPrice]);
@@ -104,7 +157,7 @@ export const StockChartDialog = ({
 
           <TabsContent value="minute" className="mt-6">
             <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={chartData}>
+              <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="time" 
@@ -124,21 +177,24 @@ export const StockChartDialog = ({
                     color: "hsl(var(--card-foreground))",
                   }}
                   labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                  formatter={(value: any, name: string) => {
+                    const labels: Record<string, string> = {
+                      open: "Apertura",
+                      high: "Máximo",
+                      low: "Mínimo",
+                      close: "Cierre",
+                    };
+                    return [`$${value}`, labels[name] || name];
+                  }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="price" 
-                  stroke="hsl(var(--chart-1))" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
+                <Bar dataKey="high" shape={Candlestick} />
+              </ComposedChart>
             </ResponsiveContainer>
           </TabsContent>
 
           <TabsContent value="day" className="mt-6">
             <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={chartData}>
+              <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="time" 
@@ -158,21 +214,24 @@ export const StockChartDialog = ({
                     color: "hsl(var(--card-foreground))",
                   }}
                   labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                  formatter={(value: any, name: string) => {
+                    const labels: Record<string, string> = {
+                      open: "Apertura",
+                      high: "Máximo",
+                      low: "Mínimo",
+                      close: "Cierre",
+                    };
+                    return [`$${value}`, labels[name] || name];
+                  }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="price" 
-                  stroke="hsl(var(--chart-1))" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
+                <Bar dataKey="high" shape={Candlestick} />
+              </ComposedChart>
             </ResponsiveContainer>
           </TabsContent>
 
           <TabsContent value="week" className="mt-6">
             <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={chartData}>
+              <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="time" 
@@ -192,15 +251,18 @@ export const StockChartDialog = ({
                     color: "hsl(var(--card-foreground))",
                   }}
                   labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                  formatter={(value: any, name: string) => {
+                    const labels: Record<string, string> = {
+                      open: "Apertura",
+                      high: "Máximo",
+                      low: "Mínimo",
+                      close: "Cierre",
+                    };
+                    return [`$${value}`, labels[name] || name];
+                  }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="price" 
-                  stroke="hsl(var(--chart-1))" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
+                <Bar dataKey="high" shape={Candlestick} />
+              </ComposedChart>
             </ResponsiveContainer>
           </TabsContent>
         </Tabs>
