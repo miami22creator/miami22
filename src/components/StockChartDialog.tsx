@@ -178,14 +178,22 @@ export const StockChartDialog = ({
                     color: "hsl(var(--card-foreground))",
                   }}
                   labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                  formatter={(value: any, name: string) => {
-                    const labels: Record<string, string> = {
-                      open: "Apertura",
-                      high: "Máximo",
-                      low: "Mínimo",
-                      close: "Cierre",
-                    };
-                    return [`$${value}`, labels[name] || name];
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                          <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-success">Apertura: ${data.open}</p>
+                            <p className="text-success">Cierre: ${data.close}</p>
+                            <p className="text-muted-foreground">Máximo: ${data.high}</p>
+                            <p className="text-muted-foreground">Mínimo: ${data.low}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 <Bar dataKey="high" shape={Candlestick} />
@@ -216,14 +224,22 @@ export const StockChartDialog = ({
                     color: "hsl(var(--card-foreground))",
                   }}
                   labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                  formatter={(value: any, name: string) => {
-                    const labels: Record<string, string> = {
-                      open: "Apertura",
-                      high: "Máximo",
-                      low: "Mínimo",
-                      close: "Cierre",
-                    };
-                    return [`$${value}`, labels[name] || name];
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                          <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-success">Apertura: ${data.open}</p>
+                            <p className="text-success">Cierre: ${data.close}</p>
+                            <p className="text-muted-foreground">Máximo: ${data.high}</p>
+                            <p className="text-muted-foreground">Mínimo: ${data.low}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 <Bar dataKey="high" shape={Candlestick} />
@@ -254,14 +270,22 @@ export const StockChartDialog = ({
                     color: "hsl(var(--card-foreground))",
                   }}
                   labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                  formatter={(value: any, name: string) => {
-                    const labels: Record<string, string> = {
-                      open: "Apertura",
-                      high: "Máximo",
-                      low: "Mínimo",
-                      close: "Cierre",
-                    };
-                    return [`$${value}`, labels[name] || name];
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                          <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-success">Apertura: ${data.open}</p>
+                            <p className="text-success">Cierre: ${data.close}</p>
+                            <p className="text-muted-foreground">Máximo: ${data.high}</p>
+                            <p className="text-muted-foreground">Mínimo: ${data.low}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 <Bar dataKey="high" shape={Candlestick} />
