@@ -117,6 +117,7 @@ const Index = () => {
                         change={parseFloat(signal.change_percent)}
                         rsi={signal.indicators?.rsi || 0}
                         macd={signal.indicators?.macd || 0}
+                        createdAt={signal.created_at}
                       />
                     ))}
                   </div>
