@@ -14,7 +14,165 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          asset_id: string | null
+          confidence: number
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          signal_type: string
+        }
+        Insert: {
+          asset_id?: string | null
+          confidence: number
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          signal_type: string
+        }
+        Update: {
+          asset_id?: string | null
+          confidence?: number
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          signal_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          id: string
+          name: string
+          symbol: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          name: string
+          symbol: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          symbol?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      technical_indicators: {
+        Row: {
+          asset_id: string | null
+          atr: number | null
+          bollinger_lower: number | null
+          bollinger_upper: number | null
+          created_at: string | null
+          ema_200: number | null
+          ema_50: number | null
+          id: string
+          macd: number | null
+          obv_change: number | null
+          rsi: number | null
+          volume: number | null
+        }
+        Insert: {
+          asset_id?: string | null
+          atr?: number | null
+          bollinger_lower?: number | null
+          bollinger_upper?: number | null
+          created_at?: string | null
+          ema_200?: number | null
+          ema_50?: number | null
+          id?: string
+          macd?: number | null
+          obv_change?: number | null
+          rsi?: number | null
+          volume?: number | null
+        }
+        Update: {
+          asset_id?: string | null
+          atr?: number | null
+          bollinger_lower?: number | null
+          bollinger_upper?: number | null
+          created_at?: string | null
+          ema_200?: number | null
+          ema_50?: number | null
+          id?: string
+          macd?: number | null
+          obv_change?: number | null
+          rsi?: number | null
+          volume?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_indicators_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_signals: {
+        Row: {
+          asset_id: string | null
+          change_percent: number
+          confidence: number
+          created_at: string | null
+          id: string
+          price: number
+          signal: string
+        }
+        Insert: {
+          asset_id?: string | null
+          change_percent: number
+          confidence: number
+          created_at?: string | null
+          id?: string
+          price: number
+          signal: string
+        }
+        Update: {
+          asset_id?: string | null
+          change_percent?: number
+          confidence?: number
+          created_at?: string | null
+          id?: string
+          price?: number
+          signal?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_signals_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
