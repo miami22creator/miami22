@@ -4,7 +4,6 @@ import { ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useState, useMemo } from "react";
 import { format, subDays, subHours, subWeeks } from "date-fns";
 import { es } from "date-fns/locale";
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 interface StockChartDialogProps {
   open: boolean;
@@ -157,168 +156,147 @@ export const StockChartDialog = ({
           </TabsList>
 
           <TabsContent value="minute" className="mt-6">
-            <TransformWrapper
-              initialScale={1}
-              minScale={0.5}
-              maxScale={4}
-              centerOnInit
-            >
-              <TransformComponent wrapperStyle={{ width: "100%", height: "400px" }}>
-                <ResponsiveContainer width="100%" height={400}>
-                  <ComposedChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="time" 
-                      stroke="hsl(var(--muted-foreground))"
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                    />
-                    <YAxis 
-                      stroke="hsl(var(--muted-foreground))"
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                      domain={['auto', 'auto']}
-                      tickFormatter={(value) => `$${value.toFixed(2)}`}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "var(--radius)",
-                        color: "hsl(var(--card-foreground))",
-                      }}
-                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                              <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
-                              <div className="space-y-1 text-sm">
-                                <p className="text-success">Apertura: ${data.open}</p>
-                                <p className="text-success">Cierre: ${data.close}</p>
-                                <p className="text-muted-foreground">Máximo: ${data.high}</p>
-                                <p className="text-muted-foreground">Mínimo: ${data.low}</p>
-                              </div>
+            <div className="touch-pan-y">
+              <ResponsiveContainer width="100%" height={400}>
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="time" 
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                    domain={['auto', 'auto']}
+                    tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius)",
+                      color: "hsl(var(--card-foreground))",
+                    }}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                            <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
+                            <div className="space-y-1 text-sm">
+                              <p className="text-success">Apertura: ${data.open}</p>
+                              <p className="text-success">Cierre: ${data.close}</p>
+                              <p className="text-muted-foreground">Máximo: ${data.high}</p>
+                              <p className="text-muted-foreground">Mínimo: ${data.low}</p>
                             </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar dataKey="high" shape={Candlestick} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </TransformComponent>
-            </TransformWrapper>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="high" shape={Candlestick} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </TabsContent>
 
           <TabsContent value="day" className="mt-6">
-            <TransformWrapper
-              initialScale={1}
-              minScale={0.5}
-              maxScale={4}
-              centerOnInit
-            >
-              <TransformComponent wrapperStyle={{ width: "100%", height: "400px" }}>
-                <ResponsiveContainer width="100%" height={400}>
-                  <ComposedChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="time" 
-                      stroke="hsl(var(--muted-foreground))"
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                    />
-                    <YAxis 
-                      stroke="hsl(var(--muted-foreground))"
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                      domain={['auto', 'auto']}
-                      tickFormatter={(value) => `$${value.toFixed(2)}`}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "var(--radius)",
-                        color: "hsl(var(--card-foreground))",
-                      }}
-                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                              <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
-                              <div className="space-y-1 text-sm">
-                                <p className="text-success">Apertura: ${data.open}</p>
-                                <p className="text-success">Cierre: ${data.close}</p>
-                                <p className="text-muted-foreground">Máximo: ${data.high}</p>
-                                <p className="text-muted-foreground">Mínimo: ${data.low}</p>
-                              </div>
+            <div className="touch-pan-y">
+              <ResponsiveContainer width="100%" height={400}>
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="time" 
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                    domain={['auto', 'auto']}
+                    tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius)",
+                      color: "hsl(var(--card-foreground))",
+                    }}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                            <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
+                            <div className="space-y-1 text-sm">
+                              <p className="text-success">Apertura: ${data.open}</p>
+                              <p className="text-success">Cierre: ${data.close}</p>
+                              <p className="text-muted-foreground">Máximo: ${data.high}</p>
+                              <p className="text-muted-foreground">Mínimo: ${data.low}</p>
                             </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar dataKey="high" shape={Candlestick} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </TransformComponent>
-            </TransformWrapper>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="high" shape={Candlestick} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </TabsContent>
 
           <TabsContent value="week" className="mt-6">
-            <TransformWrapper
-              initialScale={1}
-              minScale={0.5}
-              maxScale={4}
-              centerOnInit
-            >
-              <TransformComponent wrapperStyle={{ width: "100%", height: "400px" }}>
-                <ResponsiveContainer width="100%" height={400}>
-                  <ComposedChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="time" 
-                      stroke="hsl(var(--muted-foreground))"
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                    />
-                    <YAxis 
-                      stroke="hsl(var(--muted-foreground))"
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                      domain={['auto', 'auto']}
-                      tickFormatter={(value) => `$${value.toFixed(2)}`}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "var(--radius)",
-                        color: "hsl(var(--card-foreground))",
-                      }}
-                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                              <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
-                              <div className="space-y-1 text-sm">
-                                <p className="text-success">Apertura: ${data.open}</p>
-                                <p className="text-success">Cierre: ${data.close}</p>
-                                <p className="text-muted-foreground">Máximo: ${data.high}</p>
-                                <p className="text-muted-foreground">Mínimo: ${data.low}</p>
-                              </div>
+            <div className="touch-pan-y">
+              <ResponsiveContainer width="100%" height={400}>
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="time" 
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                    domain={['auto', 'auto']}
+                    tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius)",
+                      color: "hsl(var(--card-foreground))",
+                    }}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                            <p className="font-semibold text-card-foreground mb-2">{data.time}</p>
+                            <div className="space-y-1 text-sm">
+                              <p className="text-success">Apertura: ${data.open}</p>
+                              <p className="text-success">Cierre: ${data.close}</p>
+                              <p className="text-muted-foreground">Máximo: ${data.high}</p>
+                              <p className="text-muted-foreground">Mínimo: ${data.low}</p>
                             </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar dataKey="high" shape={Candlestick} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </TransformComponent>
-            </TransformWrapper>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="high" shape={Candlestick} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>
