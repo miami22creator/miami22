@@ -3,6 +3,7 @@ import { MarketOverview } from "@/components/MarketOverview";
 import { SignalCard } from "@/components/SignalCard";
 import { IndicatorPanel } from "@/components/IndicatorPanel";
 import { AlertsPanel } from "@/components/AlertsPanel";
+import { ManualSignalGenerator } from "@/components/ManualSignalGenerator";
 import { useTradingSignals } from "@/hooks/useTradingData";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
@@ -27,9 +28,12 @@ const Index = () => {
         (payload) => {
           console.log('Nueva señal detectada:', payload);
           refetch();
+          
+          // Mostrar notificación con información de la señal
+          const newSignal = payload.new as any;
           toast({
-            title: "Nueva señal detectada",
-            description: "El dashboard se ha actualizado con la última información",
+            title: `🎯 Nueva señal: ${newSignal.signal}`,
+            description: `Confianza: ${newSignal.confidence}% | Precio: $${newSignal.price}`,
           });
         }
       )
@@ -42,10 +46,11 @@ const Index = () => {
         },
         (payload) => {
           console.log('Nueva alerta:', payload);
+          const alert = payload.new as any;
           toast({
-            title: "⚡ Nueva alerta de trading",
-            description: "Se ha detectado una nueva oportunidad",
-            variant: "default",
+            title: `⚡ Alerta de ${alert.signal_type}`,
+            description: `${alert.message} (${alert.confidence}% confianza)`,
+            duration: 8000,
           });
         }
       )
@@ -83,15 +88,22 @@ const Index = () => {
           
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
+              <ManualSignalGenerator />
+              
               <div>
                 <h2 className="mb-4 text-2xl font-bold text-foreground">
                   Señales Activas
                 </h2>
                 {latestSignals.length === 0 ? (
                   <div className="flex items-center justify-center rounded-lg border border-border bg-card p-12">
-                    <p className="text-muted-foreground">
-                      No hay señales disponibles. Ejecuta la función para generar señales.
-                    </p>
+                    <div className="text-center">
+                      <p className="mb-2 text-muted-foreground">
+                        No hay señales disponibles aún.
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Usa el panel superior para generar señales manualmente o espera a que el cron job las genere automáticamente.
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
