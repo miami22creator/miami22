@@ -82,6 +82,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_executions: {
+        Row: {
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          job_name: string
+          success: boolean | null
+        }
+        Insert: {
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          job_name: string
+          success?: boolean | null
+        }
+        Update: {
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          job_name?: string
+          success?: boolean | null
+        }
+        Relationships: []
+      }
       technical_indicators: {
         Row: {
           asset_id: string | null
@@ -178,7 +202,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_all_signals: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
