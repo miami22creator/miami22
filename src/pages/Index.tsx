@@ -4,6 +4,7 @@ import { SignalCard } from "@/components/SignalCard";
 import { IndicatorPanel } from "@/components/IndicatorPanel";
 import { AlertsPanel } from "@/components/AlertsPanel";
 import { ManualSignalGenerator } from "@/components/ManualSignalGenerator";
+import { StockChartDialog } from "@/components/StockChartDialog";
 import { useTradingSignals } from "@/hooks/useTradingData";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -19,6 +20,8 @@ const Index = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const { data: signals, isLoading, refetch } = useTradingSignals();
+  const [selectedSignal, setSelectedSignal] = useState<any>(null);
+  const [chartDialogOpen, setChartDialogOpen] = useState(false);
 
   // Verificar autenticación
   useEffect(() => {
@@ -153,11 +156,8 @@ const Index = () => {
                         macd={signal.indicators?.macd || 0}
                         createdAt={signal.created_at}
                         onClick={() => {
-                          toast({
-                            title: signal.assets.name,
-                            description: `Símbolo: ${signal.assets.symbol}`,
-                            variant: "info",
-                          });
+                          setSelectedSignal(signal);
+                          setChartDialogOpen(true);
                         }}
                       />
                     ))}
@@ -173,6 +173,17 @@ const Index = () => {
           </div>
         </div>
       </main>
+
+      {selectedSignal && (
+        <StockChartDialog
+          open={chartDialogOpen}
+          onOpenChange={setChartDialogOpen}
+          assetName={selectedSignal.assets.name}
+          assetSymbol={selectedSignal.assets.symbol}
+          currentPrice={parseFloat(selectedSignal.price)}
+          changePercent={parseFloat(selectedSignal.change_percent)}
+        />
+      )}
     </div>
   );
 };
