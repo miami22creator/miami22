@@ -6,13 +6,46 @@ import { AlertsPanel } from "@/components/AlertsPanel";
 import { ManualSignalGenerator } from "@/components/ManualSignalGenerator";
 import { useTradingSignals } from "@/hooks/useTradingData";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import type { User, Session } from "@supabase/supabase-js";
 
 const Index = () => {
-  const { data: signals, isLoading, refetch } = useTradingSignals();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const { data: signals, isLoading, refetch } = useTradingSignals();
+
+  // Verificar autenticación
+  useEffect(() => {
+    // Configurar listener de auth PRIMERO
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+      
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    // LUEGO verificar sesión existente
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+      
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   // Suscribirse a actualizaciones en tiempo real
   useEffect(() => {
@@ -61,7 +94,7 @@ const Index = () => {
     };
   }, [refetch, toast]);
 
-  if (isLoading) {
+  if (authLoading || isLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -80,7 +113,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <TradingHeader />
+      <TradingHeader user={user} />
       
       <main className="container mx-auto px-6 py-8">
         <div className="space-y-8">
