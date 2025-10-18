@@ -7,6 +7,7 @@ import { es } from "date-fns/locale";
 
 interface SignalCardProps {
   asset: string;
+  assetName: string;
   signal: "CALL" | "PUT" | "NEUTRAL";
   confidence: number;
   price: number;
@@ -14,9 +15,10 @@ interface SignalCardProps {
   rsi: number;
   macd: number;
   createdAt: string;
+  onClick?: () => void;
 }
 
-export const SignalCard = ({ asset, signal, confidence, price, change, rsi, macd, createdAt }: SignalCardProps) => {
+export const SignalCard = ({ asset, assetName, signal, confidence, price, change, rsi, macd, createdAt, onClick }: SignalCardProps) => {
   const isPositive = change >= 0;
   const isCall = signal === "CALL";
   const isPut = signal === "PUT";
@@ -25,11 +27,14 @@ export const SignalCard = ({ asset, signal, confidence, price, change, rsi, macd
   const formattedTime = format(new Date(createdAt), "HH:mm:ss", { locale: es });
 
   return (
-    <Card className={cn(
-      "transition-all hover:shadow-lg",
-      isCall && "border-primary/50",
-      isPut && "border-destructive/50"
-    )}>
+    <Card 
+      className={cn(
+        "transition-all hover:shadow-lg cursor-pointer",
+        isCall && "border-primary/50",
+        isPut && "border-destructive/50"
+      )}
+      onClick={onClick}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between mb-2">
           <CardTitle className="text-lg font-bold">{asset}</CardTitle>

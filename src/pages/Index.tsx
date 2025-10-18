@@ -144,6 +144,7 @@ const Index = () => {
                       <SignalCard
                         key={signal.id}
                         asset={signal.assets.symbol}
+                        assetName={signal.assets.name}
                         signal={signal.signal}
                         confidence={parseFloat(signal.confidence)}
                         price={parseFloat(signal.price)}
@@ -151,6 +152,12 @@ const Index = () => {
                         rsi={signal.indicators?.rsi || 0}
                         macd={signal.indicators?.macd || 0}
                         createdAt={signal.created_at}
+                        onClick={() => {
+                          toast({
+                            title: signal.assets.name,
+                            description: `Símbolo: ${signal.assets.symbol}`,
+                          });
+                        }}
                       />
                     ))}
                   </div>
