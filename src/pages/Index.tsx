@@ -156,6 +156,7 @@ const Index = () => {
                           toast({
                             title: signal.assets.name,
                             description: `Símbolo: ${signal.assets.symbol}`,
+                            variant: "info",
                           });
                         }}
                       />
