@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { Bell, TrendingUp, TrendingDown, Loader2, Clock } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAlerts } from "@/hooks/useTradingData";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
 
 export const AlertsPanel = () => {
@@ -47,7 +47,13 @@ export const AlertsPanel = () => {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{alert.message}</p>
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        {format(new Date(alert.created_at), "dd/MM/yyyy • HH:mm:ss")}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs mt-1">
                       <span className="text-muted-foreground">
                         {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true, locale: es })}
                       </span>
