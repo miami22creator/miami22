@@ -1,73 +1,149 @@
-# Welcome to your Lovable project
+# Trading Signal Predictor 📈
 
-## Project info
+Sistema de predicción de señales CALL/PUT en tiempo real con análisis técnico avanzado e indicadores de mercado.
 
-**URL**: https://lovable.dev/projects/2ddfe7aa-46fa-4c4b-8bbe-347b40e7ea1c
+## 🎯 Características
 
-## How can I edit this code?
+- **Dashboard en tiempo real** con señales CALL/PUT
+- **Indicadores técnicos avanzados**: RSI, MACD, Bollinger Bands, EMA, Volume, ATR
+- **Sistema de alertas** automáticas
+- **Múltiples activos**: TSLA, NVDA, SPY, GLD, AMD, PLTR, MSTR y más
+- **Análisis de confianza** basado en confluencia de indicadores
+- **Diseño profesional** optimizado para trading
 
-There are several ways of editing your application.
+## 🚀 Activos Soportados
 
-**Use Lovable**
+- **Tech & IA**: Tesla (TSLA), NVIDIA (NVDA), AMD, Palantir (PLTR)
+- **Índices**: S&P 500 (SPY)
+- **Materias primas**: Oro (GLD)
+- **Crypto-relacionados**: MicroStrategy (MSTR)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2ddfe7aa-46fa-4c4b-8bbe-347b40e7ea1c) and start prompting.
+## 🔧 Tecnologías
 
-Changes made via Lovable will be committed automatically to this repo.
+- React + TypeScript
+- Vite
+- Tailwind CSS
+- Shadcn/ui
+- React Query
 
-**Use your preferred IDE**
+## 📊 Indicadores Implementados
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. **RSI (Relative Strength Index)**: Sobrecompra/sobreventa
+2. **MACD**: Momentum y dirección de tendencia
+3. **Bollinger Bands**: Volatilidad y rupturas
+4. **EMA 50/200**: Cruces de medias móviles
+5. **Volume**: Confirmación de fuerza
+6. **ATR**: Volatilidad y stop-loss
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🔌 Conexión con Backend
 
-Follow these steps:
+Este frontend está diseñado para conectarse con un backend FastAPI. Para integrar tu backend:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 1. Crear servicio de API
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Crea un archivo `src/services/tradingApi.ts`:
 
-# Step 3: Install the necessary dependencies.
-npm i
+```typescript
+const API_URL = 'http://localhost:8000'; // URL de tu backend FastAPI
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+export const fetchSignals = async () => {
+  const response = await fetch(`${API_URL}/signals`);
+  return response.json();
+};
+
+export const fetchPrediction = async (data: { rsi: number; macd: number; obv_change: number }) => {
+  const response = await fetch(`${API_URL}/predict`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return response.json();
+};
+```
+
+### 2. Usar React Query para datos en tiempo real
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { fetchSignals } from '@/services/tradingApi';
+
+const { data: signals } = useQuery({
+  queryKey: ['signals'],
+  queryFn: fetchSignals,
+  refetchInterval: 60000, // Actualizar cada minuto
+});
+```
+
+### 3. WebSocket para actualizaciones en vivo
+
+Para implementar WebSocket con tu backend:
+
+```typescript
+useEffect(() => {
+  const ws = new WebSocket('ws://localhost:8000/ws');
+  
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    // Actualizar señales en tiempo real
+  };
+  
+  return () => ws.close();
+}, []);
+```
+
+## 📦 Instalación
+
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🌐 Deploy
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Este proyecto está optimizado para deploy en:
+- GitHub Pages
+- Vercel
+- Netlify
+- Render
 
-**Use GitHub Codespaces**
+## 📚 Estructura del Proyecto
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```
+src/
+├── components/         # Componentes de UI
+│   ├── TradingHeader   # Header con estado en vivo
+│   ├── MarketOverview  # Resumen de mercado
+│   ├── SignalCard      # Tarjetas de señales individuales
+│   ├── IndicatorPanel  # Panel de indicadores técnicos
+│   └── AlertsPanel     # Panel de alertas recientes
+├── pages/             # Páginas de la aplicación
+│   └── Index          # Dashboard principal
+└── services/          # Servicios de API (añadir aquí)
+```
 
-## What technologies are used for this project?
+## 🎨 Personalización
 
-This project is built with:
+El sistema de diseño está completamente personalizado para trading:
+- **Verde (success)**: Señales CALL, tendencias alcistas
+- **Rojo (destructive)**: Señales PUT, tendencias bajistas
+- **Tema oscuro**: Optimizado para largas sesiones de trading
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Personaliza colores en `src/index.css` usando variables CSS.
 
-## How can I deploy this project?
+## 🔐 Seguridad
 
-Simply open [Lovable](https://lovable.dev/projects/2ddfe7aa-46fa-4c4b-8bbe-347b40e7ea1c) and click on Share -> Publish.
+- Nunca expongas API keys en el frontend
+- Usa variables de entorno para URLs de producción
+- Implementa autenticación si es necesario
 
-## Can I connect a custom domain to my Lovable project?
+## 📈 Próximas Características
 
-Yes, you can!
+- [ ] Gráficos interactivos con TradingView
+- [ ] Notificaciones push de alertas
+- [ ] Histórico de señales
+- [ ] Backtesting de estrategias
+- [ ] Integración con brokers
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📞 Soporte
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Para más información sobre los indicadores y estrategias implementadas, consulta la documentación del proyecto.
