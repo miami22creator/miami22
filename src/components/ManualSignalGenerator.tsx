@@ -52,14 +52,14 @@ export const ManualSignalGenerator = () => {
     setIsGenerating(true);
 
     try {
-      // Llamar a la función de base de datos que genera señales para todos los activos
-      const { error } = await supabase.rpc('generate_all_signals');
+      // Llamar a la edge function que genera señales para todos los activos
+      const { data, error } = await supabase.functions.invoke('generate-all-signals');
 
       if (error) throw error;
 
       toast({
         title: "✅ Señales generadas",
-        description: "Se han generado señales para todos los activos activos",
+        description: `Se generaron ${data?.successful || 0} señales exitosamente`,
       });
     } catch (error) {
       console.error('Error generating all signals:', error);
