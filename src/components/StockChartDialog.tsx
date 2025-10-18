@@ -168,6 +168,7 @@ export const StockChartDialog = ({
                   stroke="hsl(var(--muted-foreground))"
                   tick={{ fill: "hsl(var(--muted-foreground))" }}
                   domain={['auto', 'auto']}
+                  tickFormatter={(value) => `$${value.toFixed(2)}`}
                 />
                 <Tooltip 
                   contentStyle={{
@@ -205,6 +206,7 @@ export const StockChartDialog = ({
                   stroke="hsl(var(--muted-foreground))"
                   tick={{ fill: "hsl(var(--muted-foreground))" }}
                   domain={['auto', 'auto']}
+                  tickFormatter={(value) => `$${value.toFixed(2)}`}
                 />
                 <Tooltip 
                   contentStyle={{
@@ -242,6 +244,7 @@ export const StockChartDialog = ({
                   stroke="hsl(var(--muted-foreground))"
                   tick={{ fill: "hsl(var(--muted-foreground))" }}
                   domain={['auto', 'auto']}
+                  tickFormatter={(value) => `$${value.toFixed(2)}`}
                 />
                 <Tooltip 
                   contentStyle={{
