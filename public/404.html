@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trading Signal Predictor</title>
+    <script>
+      // Redirect to index.html with the current path as a query parameter
+      // This allows the React Router to handle the routing
+      const path = window.location.pathname.slice(1);
+      const query = window.location.search;
+      window.location.replace('/' + (path ? '?redirect=' + path + query : query));
+    </script>
+  </head>
+  <body>
+    <noscript>
+      <p>Por favor habilita JavaScript para usar esta aplicación.</p>
+    </noscript>
+  </body>
+</html>
