@@ -43,9 +43,14 @@ serve(async (req) => {
     
     // Calcular indicadores técnicos basados en datos históricos
     const indicators = await calculateTechnicalIndicators(marketData);
-    const signal = generateSignal(indicators, marketData);
+    
+    // Obtener impacto social y de noticias
+    const socialImpact = await fetchSocialAndNewsImpact(supabaseClient, asset.id);
+    
+    const signal = generateSignal(indicators, marketData, socialImpact);
 
     console.log(`Indicators calculated for ${assetSymbol}:`, indicators);
+    console.log(`Social impact:`, socialImpact);
     console.log(`Signal generated:`, signal);
 
     // Guardar indicadores
@@ -315,8 +320,44 @@ function calculateATR(highs: number[], lows: number[], closes: number[], period:
   return recentTR.reduce((a, b) => a + b, 0) / period;
 }
 
-// Generar señales basadas en indicadores
-function generateSignal(indicators: any, marketData: any) {
+// Obtener impacto de redes sociales y noticias
+async function fetchSocialAndNewsImpact(supabaseClient: any, assetId: string) {
+  // Obtener posts sociales de las últimas 48 horas
+  const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  
+  const { data: socialPosts } = await supabaseClient
+    .from('social_posts')
+    .select(`
+      sentiment_label,
+      sentiment_score,
+      urgency_level,
+      influencers (
+        influence_score,
+        accuracy_score
+      )
+    `)
+    .eq('asset_id', assetId)
+    .gte('posted_at', twoDaysAgo)
+    .order('posted_at', { ascending: false });
+
+  // Obtener noticias de las últimas 24 horas
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  
+  const { data: news } = await supabaseClient
+    .from('market_news')
+    .select('sentiment_label, sentiment_score, relevance_score')
+    .eq('asset_id', assetId)
+    .gte('published_at', oneDayAgo)
+    .order('published_at', { ascending: false });
+
+  return {
+    socialPosts: socialPosts || [],
+    news: news || []
+  };
+}
+
+// Generar señales basadas en indicadores + impacto social
+function generateSignal(indicators: any, marketData: any, socialImpact: any) {
   let signalType = 'NEUTRAL';
   let confidence = 50;
   let message = '';
@@ -352,15 +393,120 @@ function generateSignal(indicators: any, marketData: any) {
   // Análisis EMA
   if (indicators.ema_50 > indicators.ema_200) {
     if (signalType === 'CALL') confidence += 10;
-    message += 'Cruce dorado detectado.';
+    message += 'Cruce dorado detectado. ';
   } else {
     if (signalType === 'PUT') confidence += 10;
-    message += 'Cruce de muerte detectado.';
+    message += 'Cruce de muerte detectado. ';
+  }
+
+  // NUEVO: Análisis de Redes Sociales
+  if (socialImpact.socialPosts.length > 0) {
+    let bullishCount = 0;
+    let bearishCount = 0;
+    let weightedSentiment = 0;
+    let totalWeight = 0;
+
+    for (const post of socialImpact.socialPosts) {
+      const influencer = post.influencers;
+      const weight = (influencer?.accuracy_score || 50) * (influencer?.influence_score || 50) / 100;
+      
+      if (post.sentiment_label === 'bullish') {
+        bullishCount++;
+        weightedSentiment += (post.sentiment_score || 0.5) * weight;
+      } else if (post.sentiment_label === 'bearish') {
+        bearishCount++;
+        weightedSentiment -= (post.sentiment_score || 0.5) * weight;
+      }
+      
+      totalWeight += weight;
+    }
+
+    if (totalWeight > 0) {
+      const avgSentiment = weightedSentiment / totalWeight;
+      
+      if (avgSentiment > 0.3) {
+        // Sentiment fuertemente bullish
+        if (signalType === 'CALL' || signalType === 'NEUTRAL') {
+          confidence += 12;
+          message += `Influencers bullish (${bullishCount}). `;
+        } else {
+          // Contradice señal técnica PUT
+          confidence -= 8;
+          message += `Conflicto: técnico bajista vs influencers bullish. `;
+        }
+      } else if (avgSentiment < -0.3) {
+        // Sentiment fuertemente bearish
+        if (signalType === 'PUT' || signalType === 'NEUTRAL') {
+          confidence += 12;
+          message += `Influencers bearish (${bearishCount}). `;
+        } else {
+          // Contradice señal técnica CALL
+          confidence -= 8;
+          message += `Conflicto: técnico alcista vs influencers bearish. `;
+        }
+      }
+
+      // Urgencia crítica adicional
+      const criticalPosts = socialImpact.socialPosts.filter(
+        (p: any) => p.urgency_level === 'critical'
+      );
+      if (criticalPosts.length > 0) {
+        confidence += 5;
+        message += `${criticalPosts.length} post(s) urgente(s). `;
+      }
+    }
+  }
+
+  // NUEVO: Análisis de Noticias
+  if (socialImpact.news.length > 0) {
+    let newsSentiment = 0;
+    let newsCount = 0;
+
+    for (const article of socialImpact.news) {
+      const relevance = article.relevance_score || 0.5;
+      
+      if (article.sentiment_label === 'positive') {
+        newsSentiment += (article.sentiment_score || 0.5) * relevance;
+        newsCount++;
+      } else if (article.sentiment_label === 'negative') {
+        newsSentiment -= (article.sentiment_score || 0.5) * relevance;
+        newsCount++;
+      }
+    }
+
+    if (newsCount > 0) {
+      const avgNewsSentiment = newsSentiment / newsCount;
+      
+      if (avgNewsSentiment > 0.2) {
+        if (signalType === 'CALL' || signalType === 'NEUTRAL') {
+          confidence += 8;
+          message += `Noticias positivas (${newsCount}). `;
+        } else {
+          confidence -= 5;
+        }
+      } else if (avgNewsSentiment < -0.2) {
+        if (signalType === 'PUT' || signalType === 'NEUTRAL') {
+          confidence += 8;
+          message += `Noticias negativas (${newsCount}). `;
+        } else {
+          confidence -= 5;
+        }
+      }
+    }
+  }
+
+  // Determinar tipo de señal si es NEUTRAL después del análisis social
+  if (signalType === 'NEUTRAL') {
+    if (confidence > 55) {
+      signalType = 'CALL';
+    } else if (confidence < 45) {
+      signalType = 'PUT';
+    }
   }
 
   return {
     type: signalType,
-    confidence: Math.min(confidence, 95),
+    confidence: Math.max(20, Math.min(confidence, 98)),
     price: marketData.currentPrice,
     change: marketData.change,
     message: message.trim()
