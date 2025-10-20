@@ -7,6 +7,7 @@ import { ManualSignalGenerator } from "@/components/ManualSignalGenerator";
 import { StockChartDialog } from "@/components/StockChartDialog";
 import { TweetPublisher } from "@/components/TweetPublisher";
 import { MarketNewsPanel } from "@/components/MarketNewsPanel";
+import { InfluencersPanel } from "@/components/InfluencersPanel";
 import { useTradingSignals } from "@/hooks/useTradingData";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -206,6 +207,14 @@ const Index = () => {
               <IndicatorPanel />
               <AlertsPanel />
             </div>
+          </div>
+
+          {/* Panel de Influencers */}
+          <div className="mt-8">
+            <h2 className="mb-4 text-2xl font-bold text-foreground">
+              Social Media Impact
+            </h2>
+            <InfluencersPanel />
           </div>
         </div>
       </main>

@@ -106,6 +106,54 @@ export type Database = {
         }
         Relationships: []
       }
+      influencers: {
+        Row: {
+          accuracy_score: number | null
+          avatar_url: string | null
+          correct_predictions: number | null
+          created_at: string
+          followers_count: number | null
+          id: string
+          influence_score: number | null
+          is_active: boolean | null
+          name: string
+          platform: string
+          total_predictions: number | null
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          accuracy_score?: number | null
+          avatar_url?: string | null
+          correct_predictions?: number | null
+          created_at?: string
+          followers_count?: number | null
+          id?: string
+          influence_score?: number | null
+          is_active?: boolean | null
+          name: string
+          platform: string
+          total_predictions?: number | null
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          accuracy_score?: number | null
+          avatar_url?: string | null
+          correct_predictions?: number | null
+          created_at?: string
+          followers_count?: number | null
+          id?: string
+          influence_score?: number | null
+          is_active?: boolean | null
+          name?: string
+          platform?: string
+          total_predictions?: number | null
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       market_news: {
         Row: {
           asset_id: string | null
@@ -158,6 +206,120 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_correlations: {
+        Row: {
+          asset_id: string
+          created_at: string
+          id: string
+          measured_at: string | null
+          post_id: string
+          prediction_correct: boolean | null
+          price_after: number | null
+          price_before: number
+          price_change_percent: number | null
+          time_to_impact_hours: number | null
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          id?: string
+          measured_at?: string | null
+          post_id: string
+          prediction_correct?: boolean | null
+          price_after?: number | null
+          price_before: number
+          price_change_percent?: number | null
+          time_to_impact_hours?: number | null
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          id?: string
+          measured_at?: string | null
+          post_id?: string
+          prediction_correct?: boolean | null
+          price_after?: number | null
+          price_before?: number
+          price_change_percent?: number | null
+          time_to_impact_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_correlations_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_correlations_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "social_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_posts: {
+        Row: {
+          analyzed_at: string | null
+          asset_id: string | null
+          created_at: string
+          engagement_count: number | null
+          id: string
+          influencer_id: string
+          post_text: string
+          post_url: string | null
+          posted_at: string
+          sentiment_label: string | null
+          sentiment_score: number | null
+          urgency_level: string | null
+        }
+        Insert: {
+          analyzed_at?: string | null
+          asset_id?: string | null
+          created_at?: string
+          engagement_count?: number | null
+          id?: string
+          influencer_id: string
+          post_text: string
+          post_url?: string | null
+          posted_at: string
+          sentiment_label?: string | null
+          sentiment_score?: number | null
+          urgency_level?: string | null
+        }
+        Update: {
+          analyzed_at?: string | null
+          asset_id?: string | null
+          created_at?: string
+          engagement_count?: number | null
+          id?: string
+          influencer_id?: string
+          post_text?: string
+          post_url?: string | null
+          posted_at?: string
+          sentiment_label?: string | null
+          sentiment_score?: number | null
+          urgency_level?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_posts_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
             referencedColumns: ["id"]
           },
         ]

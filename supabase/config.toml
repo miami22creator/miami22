@@ -2,3 +2,6 @@ project_id = "hmiypsikrqgomawbcimq"
 
 [functions.publish-tweet]
 verify_jwt = false
+
+[functions.analyze-social-post]
+verify_jwt = false
