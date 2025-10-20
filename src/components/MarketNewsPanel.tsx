@@ -10,6 +10,9 @@ export const MarketNewsPanel = () => {
   const { data: news, isLoading } = useQuery({
     queryKey: ["market-news"],
     queryFn: async () => {
+      // Filtrar noticias de las últimas 24 horas
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
       const { data, error } = await supabase
         .from("market_news")
         .select(`
@@ -19,6 +22,7 @@ export const MarketNewsPanel = () => {
             name
           )
         `)
+        .gte("published_at", oneDayAgo)
         .order("published_at", { ascending: false })
         .limit(20);
 
