@@ -3,10 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, Target, CheckCircle2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, TrendingDown, Target, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { useState } from "react";
 
 export const PredictionAccuracyPanel = () => {
-  const { data: correlations } = useQuery({
+  const [isValidating, setIsValidating] = useState(false);
+
+  const { data: correlations, refetch: refetchCorrelations } = useQuery({
     queryKey: ["price-correlations"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -27,7 +32,7 @@ export const PredictionAccuracyPanel = () => {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  const { data: influencers } = useQuery({
+  const { data: influencers, refetch: refetchInfluencers } = useQuery({
     queryKey: ["influencers-accuracy"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -56,16 +61,47 @@ export const PredictionAccuracyPanel = () => {
     ? (stats.correct / stats.total) * 100 
     : 0;
 
+  const handleValidateNow = async () => {
+    setIsValidating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("validate-predictions");
+      
+      if (error) throw error;
+      
+      toast.success(`Validación completada: ${data.correct}/${data.validated} predicciones correctas (${data.accuracy.toFixed(2)}%)`);
+      
+      // Refrescar los datos
+      refetchCorrelations();
+      refetchInfluencers();
+    } catch (error) {
+      console.error("Error validating predictions:", error);
+      toast.error("Error al validar predicciones");
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Target className="w-5 h-5" />
-          Precisión del Sistema
-          <Badge variant={overallAccuracy >= 70 ? "default" : "secondary"} className="ml-2">
-            {overallAccuracy.toFixed(1)}%
-          </Badge>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Precisión del Sistema
+            <Badge variant={overallAccuracy >= 70 ? "default" : "secondary"} className="ml-2">
+              {overallAccuracy.toFixed(1)}%
+            </Badge>
+          </CardTitle>
+          <Button 
+            onClick={handleValidateNow} 
+            disabled={isValidating}
+            size="sm"
+            variant="outline"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isValidating ? 'animate-spin' : ''}`} />
+            Validar
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Estadísticas generales */}
