@@ -10,11 +10,13 @@ import { MarketNewsPanel } from "@/components/MarketNewsPanel";
 import { InfluencersPanel } from "@/components/InfluencersPanel";
 import { PredictionAccuracyPanel } from "@/components/PredictionAccuracyPanel";
 import { useTradingSignals } from "@/hooks/useTradingData";
-import { Loader2 } from "lucide-react";
+import { Loader2, Target, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { toast as sonnerToast } from "sonner";
 import type { User, Session } from "@supabase/supabase-js";
 
 const Index = () => {
@@ -26,6 +28,7 @@ const Index = () => {
   const { data: signals, isLoading, refetch } = useTradingSignals();
   const [selectedSignal, setSelectedSignal] = useState<any>(null);
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
   // Manejar el botón atrás del navegador para cerrar el diálogo
   useEffect(() => {
@@ -141,6 +144,30 @@ const Index = () => {
     );
   }
 
+  const handleValidateNow = async () => {
+    setIsValidating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("validate-predictions");
+      
+      if (error) throw error;
+      
+      sonnerToast.success(
+        `✅ Validación completada: ${data.correct}/${data.validated} predicciones correctas`,
+        {
+          description: `Accuracy: ${data.accuracy.toFixed(2)}%`
+        }
+      );
+      
+      // Refrescar señales
+      refetch();
+    } catch (error) {
+      console.error("Error validating predictions:", error);
+      sonnerToast.error("Error al validar predicciones");
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
   // Agrupar señales por activo (tomar la más reciente de cada uno)
   const latestSignals = signals?.reduce((acc: any[], signal: any) => {
     const existing = acc.find(s => s.assets.symbol === signal.assets.symbol);
@@ -156,7 +183,31 @@ const Index = () => {
       
       <main className="container mx-auto px-6 py-8">
         <div className="space-y-8">
-          <MarketOverview />
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <MarketOverview />
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <Target className="h-5 w-5 text-primary" />
+              <div>
+                <h3 className="font-semibold">Validación de Predicciones</h3>
+                <p className="text-sm text-muted-foreground">
+                  Compara predicciones de las últimas 24h con precios reales
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={handleValidateNow} 
+              disabled={isValidating}
+              size="lg"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isValidating ? 'animate-spin' : ''}`} />
+              {isValidating ? 'Validando...' : 'Validar Ahora'}
+            </Button>
+          </div>
           
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
