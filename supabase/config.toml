@@ -3,5 +3,8 @@ project_id = "hmiypsikrqgomawbcimq"
 [functions.publish-tweet]
 verify_jwt = false
 
-[functions.analyze-social-post]
+[functions.analyze-social-sentiment]
+verify_jwt = false
+
+[functions.fetch-market-news]
 verify_jwt = false
