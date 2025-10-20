@@ -176,7 +176,7 @@ const Index = () => {
       acc.push(signal);
     }
     return acc;
-  }, []).slice(0, 6) || [];
+  }, []) || [];
 
   return (
     <div className="min-h-screen bg-background">
