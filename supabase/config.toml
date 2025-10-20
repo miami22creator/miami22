@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.fetch-market-news]
 verify_jwt = false
+
+[functions.fetch-social-posts]
+verify_jwt = false
