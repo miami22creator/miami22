@@ -6,6 +6,7 @@ import { AlertsPanel } from "@/components/AlertsPanel";
 import { ManualSignalGenerator } from "@/components/ManualSignalGenerator";
 import { StockChartDialog } from "@/components/StockChartDialog";
 import { TweetPublisher } from "@/components/TweetPublisher";
+import { MarketNewsPanel } from "@/components/MarketNewsPanel";
 import { useTradingSignals } from "@/hooks/useTradingData";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -201,6 +202,7 @@ const Index = () => {
             
             <div className="space-y-6">
               <TweetPublisher />
+              <MarketNewsPanel />
               <IndicatorPanel />
               <AlertsPanel />
             </div>

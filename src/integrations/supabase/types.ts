@@ -106,6 +106,62 @@ export type Database = {
         }
         Relationships: []
       }
+      market_news: {
+        Row: {
+          asset_id: string | null
+          category: string | null
+          created_at: string
+          headline: string
+          id: string
+          keywords: string[] | null
+          published_at: string
+          relevance_score: number | null
+          sentiment_label: string | null
+          sentiment_score: number | null
+          source: string
+          summary: string | null
+          url: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          category?: string | null
+          created_at?: string
+          headline: string
+          id?: string
+          keywords?: string[] | null
+          published_at: string
+          relevance_score?: number | null
+          sentiment_label?: string | null
+          sentiment_score?: number | null
+          source: string
+          summary?: string | null
+          url?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          category?: string | null
+          created_at?: string
+          headline?: string
+          id?: string
+          keywords?: string[] | null
+          published_at?: string
+          relevance_score?: number | null
+          sentiment_label?: string | null
+          sentiment_score?: number | null
+          source?: string
+          summary?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_news_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technical_indicators: {
         Row: {
           asset_id: string | null
