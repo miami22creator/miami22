@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Minus, ExternalLink } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, ExternalLink, Building2, Landmark, User } from "lucide-react";
 import { format } from "date-fns";
 
 export const InfluencersPanel = () => {
@@ -64,6 +64,19 @@ export const InfluencersPanel = () => {
     }
   };
 
+  const getInfluencerIcon = (name: string) => {
+    if (name.includes('Federal Reserve') || name.includes('Fed')) {
+      return <Landmark className="h-5 w-5 text-primary" />;
+    }
+    if (name.includes('Treasury') || name.includes('Tesoro')) {
+      return <Building2 className="h-5 w-5 text-primary" />;
+    }
+    if (name.includes('Trump') || name.includes('Donald')) {
+      return <User className="h-5 w-5 text-primary" />;
+    }
+    return null;
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -97,11 +110,14 @@ export const InfluencersPanel = () => {
               <Card key={influencer.id} className="border-border/50">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-semibold">{influencer.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        @{influencer.username}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      {getInfluencerIcon(influencer.name)}
+                      <div>
+                        <h4 className="font-semibold">{influencer.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          @{influencer.username}
+                        </p>
+                      </div>
                     </div>
                     <Badge variant="outline" className="text-xs">
                       {influencer.platform}
