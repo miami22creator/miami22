@@ -356,50 +356,60 @@ async function fetchSocialAndNewsImpact(supabaseClient: any, assetId: string) {
   };
 }
 
-// Generar señales basadas en indicadores + impacto social
+// Generar señales basadas en indicadores + impacto social + APRENDIZAJE DE VALIDACIONES
 function generateSignal(indicators: any, marketData: any, socialImpact: any) {
   let signalType = 'NEUTRAL';
   let confidence = 50;
   let message = '';
-
-  // Análisis RSI
-  if (indicators.rsi < 30) {
-    signalType = 'CALL';
-    confidence += 15;
-    message = 'RSI en zona de sobreventa. ';
-  } else if (indicators.rsi > 70) {
-    signalType = 'PUT';
-    confidence += 15;
-    message = 'RSI en zona de sobrecompra. ';
+  
+  // NUEVO: Detectar tendencia general del mercado (bias alcista)
+  const marketBullish = indicators.ema_50 > indicators.ema_200;
+  
+  // BOOST: Aplicar bias alcista basado en datos históricos (CALLs tienen 3.6x más éxito)
+  if (marketBullish) {
+    confidence += 8; // Empezar con sesgo alcista
+    message += 'Mercado en tendencia alcista. ';
   }
 
-  // Análisis MACD
+  // Análisis RSI (ajustado para favorecer movimientos >2%)
+  if (indicators.rsi < 30) {
+    signalType = 'CALL';
+    confidence += 18; // Aumentado de 15 - señales más fuertes
+    message += 'RSI sobreventa fuerte. ';
+  } else if (indicators.rsi > 70) {
+    signalType = 'PUT';
+    // PENALIZACIÓN: PUTs son menos confiables en mercado alcista
+    confidence += marketBullish ? 8 : 15; // Reducido si mercado alcista
+    message += 'RSI sobrecompra. ';
+  }
+
+  // Análisis MACD (peso incrementado)
   if (indicators.macd > 0) {
-    if (signalType === 'CALL') confidence += 10;
+    if (signalType === 'CALL') confidence += 15; // Aumentado de 10
     if (signalType === 'NEUTRAL') {
       signalType = 'CALL';
-      confidence += 10;
+      confidence += 15;
     }
     message += 'MACD positivo. ';
   } else if (indicators.macd < 0) {
-    if (signalType === 'PUT') confidence += 10;
+    if (signalType === 'PUT') confidence += marketBullish ? 8 : 12; // Penalizado en alcista
     if (signalType === 'NEUTRAL') {
       signalType = 'PUT';
-      confidence += 10;
+      confidence += marketBullish ? 8 : 12;
     }
     message += 'MACD negativo. ';
   }
 
-  // Análisis EMA
+  // Análisis EMA (favorece tendencia alcista)
   if (indicators.ema_50 > indicators.ema_200) {
-    if (signalType === 'CALL') confidence += 10;
-    message += 'Cruce dorado detectado. ';
+    if (signalType === 'CALL') confidence += 15; // Aumentado de 10
+    message += 'Cruce dorado activo. ';
   } else {
     if (signalType === 'PUT') confidence += 10;
-    message += 'Cruce de muerte detectado. ';
+    message += 'Cruce de muerte activo. ';
   }
 
-  // NUEVO: Análisis de Redes Sociales
+  // Análisis de Redes Sociales (pesos ajustados)
   if (socialImpact.socialPosts.length > 0) {
     let bullishCount = 0;
     let bearishCount = 0;
@@ -408,7 +418,8 @@ function generateSignal(indicators: any, marketData: any, socialImpact: any) {
 
     for (const post of socialImpact.socialPosts) {
       const influencer = post.influencers;
-      const weight = (influencer?.accuracy_score || 50) * (influencer?.influence_score || 50) / 100;
+      // AJUSTE: Dar menos peso a accuracy_score ya que no predice bien
+      const weight = (influencer?.influence_score || 50);
       
       if (post.sentiment_label === 'bullish') {
         bullishCount++;
@@ -427,37 +438,38 @@ function generateSignal(indicators: any, marketData: any, socialImpact: any) {
       if (avgSentiment > 0.3) {
         // Sentiment fuertemente bullish
         if (signalType === 'CALL' || signalType === 'NEUTRAL') {
-          confidence += 12;
+          confidence += 15; // Aumentado de 12
           message += `Influencers bullish (${bullishCount}). `;
         } else {
-          // Contradice señal técnica PUT
-          confidence -= 8;
-          message += `Conflicto: técnico bajista vs influencers bullish. `;
+          // Contradice señal técnica PUT - mayor penalización
+          confidence -= 12; // Aumentado de 8
+          message += `ALERTA: técnico bajista vs influencers bullish. `;
         }
       } else if (avgSentiment < -0.3) {
         // Sentiment fuertemente bearish
         if (signalType === 'PUT' || signalType === 'NEUTRAL') {
-          confidence += 12;
+          // Menos boost para PUTs en general
+          confidence += marketBullish ? 8 : 12;
           message += `Influencers bearish (${bearishCount}). `;
         } else {
           // Contradice señal técnica CALL
-          confidence -= 8;
-          message += `Conflicto: técnico alcista vs influencers bearish. `;
+          confidence -= 10;
+          message += `ALERTA: técnico alcista vs influencers bearish. `;
         }
       }
 
-      // Urgencia crítica adicional
+      // Urgencia crítica (peso aumentado)
       const criticalPosts = socialImpact.socialPosts.filter(
         (p: any) => p.urgency_level === 'critical'
       );
       if (criticalPosts.length > 0) {
-        confidence += 5;
+        confidence += 8; // Aumentado de 5
         message += `${criticalPosts.length} post(s) urgente(s). `;
       }
     }
   }
 
-  // NUEVO: Análisis de Noticias
+  // Análisis de Noticias (pesos ajustados)
   if (socialImpact.news.length > 0) {
     let newsSentiment = 0;
     let newsCount = 0;
@@ -479,34 +491,48 @@ function generateSignal(indicators: any, marketData: any, socialImpact: any) {
       
       if (avgNewsSentiment > 0.2) {
         if (signalType === 'CALL' || signalType === 'NEUTRAL') {
-          confidence += 8;
+          confidence += 10; // Aumentado de 8
           message += `Noticias positivas (${newsCount}). `;
         } else {
-          confidence -= 5;
+          confidence -= 8; // Mayor penalización
         }
       } else if (avgNewsSentiment < -0.2) {
         if (signalType === 'PUT' || signalType === 'NEUTRAL') {
-          confidence += 8;
+          confidence += marketBullish ? 6 : 10; // Reducido en mercado alcista
           message += `Noticias negativas (${newsCount}). `;
         } else {
-          confidence -= 5;
+          confidence -= 6;
         }
       }
     }
   }
 
-  // Determinar tipo de señal si es NEUTRAL después del análisis social
+  // PENALIZACIÓN FINAL: PUTs en mercado alcista
+  if (signalType === 'PUT' && marketBullish) {
+    confidence = confidence * 0.85; // Reducir 15% de confianza
+    message += 'ADVERTENCIA: PUT en tendencia alcista. ';
+  }
+  
+  // BOOST FINAL: CALLs en mercado alcista
+  if (signalType === 'CALL' && marketBullish) {
+    confidence = confidence * 1.1; // Aumentar 10% de confianza
+  }
+
+  // Determinar tipo de señal si es NEUTRAL (sesgo hacia CALL)
   if (signalType === 'NEUTRAL') {
-    if (confidence > 55) {
+    if (confidence > 52) { // Reducido de 55 para favorecer CALLs
       signalType = 'CALL';
     } else if (confidence < 45) {
       signalType = 'PUT';
+    } else {
+      // En neutral, favorece CALL si hay bias alcista
+      signalType = marketBullish ? 'CALL' : 'NEUTRAL';
     }
   }
 
   return {
     type: signalType,
-    confidence: Math.max(20, Math.min(confidence, 98)),
+    confidence: Math.max(30, Math.min(confidence, 95)), // Ajustado rango
     price: marketData.currentPrice,
     change: marketData.change,
     message: message.trim()
