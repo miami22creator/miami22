@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.fetch-social-posts]
 verify_jwt = false
+
+[functions.validate-predictions]
+verify_jwt = false
