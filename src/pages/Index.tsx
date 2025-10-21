@@ -197,7 +197,7 @@ const Index = () => {
               <div>
                 <h3 className="font-semibold">Validación de Predicciones</h3>
                 <p className="text-sm text-muted-foreground">
-                  Compara predicciones de las últimas 24h con precios reales
+                  Valida señales de hace 5 días (horizonte estándar de opciones semanales)
                 </p>
               </div>
             </div>

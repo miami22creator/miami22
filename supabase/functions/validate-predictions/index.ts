@@ -24,8 +24,10 @@ serve(async (req) => {
 
     console.log('Starting prediction validation...');
 
-    // Obtener señales de las últimas 24 horas que no han sido validadas
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // Obtener señales de hace 5 días (120 horas) para validar
+    // Las opciones semanales típicamente expiran en 5 días
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
     
     const { data: signals, error: signalsError } = await supabaseClient
       .from('trading_signals')
@@ -41,7 +43,8 @@ serve(async (req) => {
           type
         )
       `)
-      .gte('created_at', oneDayAgo)
+      .gte('created_at', sixDaysAgo)
+      .lte('created_at', fiveDaysAgo)
       .order('created_at', { ascending: false });
 
     if (signalsError) throw signalsError;
@@ -69,19 +72,20 @@ serve(async (req) => {
           continue;
         }
 
-        // Calcular cambio de precio
+        // Calcular cambio de precio después de 5 días
         const priceChange = ((currentPrice - signal.price) / signal.price) * 100;
         
-        // Determinar si la predicción fue correcta
-        // CALL = esperamos que suba (cambio positivo > 1%)
-        // PUT = esperamos que baje (cambio negativo < -1%)
+        // Determinar si la predicción fue correcta (horizonte de 5 días)
+        // CALL = esperamos que suba (cambio positivo > 2% en 5 días)
+        // PUT = esperamos que baje (cambio negativo < -2% en 5 días)
+        // NEUTRAL = se mantiene estable (variación < 2% en 5 días)
         let predictionCorrect = false;
         
-        if (signal.signal === 'CALL' && priceChange > 1) {
+        if (signal.signal === 'CALL' && priceChange > 2) {
           predictionCorrect = true;
-        } else if (signal.signal === 'PUT' && priceChange < -1) {
+        } else if (signal.signal === 'PUT' && priceChange < -2) {
           predictionCorrect = true;
-        } else if (signal.signal === 'NEUTRAL' && Math.abs(priceChange) <= 1) {
+        } else if (signal.signal === 'NEUTRAL' && Math.abs(priceChange) <= 2) {
           predictionCorrect = true;
         }
 
@@ -94,13 +98,13 @@ serve(async (req) => {
           `(${priceChange.toFixed(2)}%) = ${predictionCorrect ? 'CORRECT' : 'INCORRECT'}`
         );
 
-        // Obtener posts sociales relacionados con este asset en el período
+        // Obtener posts sociales relacionados con este asset en el período (24h antes de la señal)
         const { data: relatedPosts } = await supabaseClient
           .from('social_posts')
           .select('id, influencer_id, sentiment_label')
           .eq('asset_id', signal.asset_id)
           .lte('posted_at', signal.created_at)
-          .gte('posted_at', new Date(new Date(signal.created_at).getTime() - 6 * 60 * 60 * 1000).toISOString());
+          .gte('posted_at', new Date(new Date(signal.created_at).getTime() - 24 * 60 * 60 * 1000).toISOString());
 
         // Crear registros de correlación para cada post
         if (relatedPosts && relatedPosts.length > 0) {
@@ -114,7 +118,7 @@ serve(async (req) => {
                 price_after: currentPrice,
                 price_change_percent: priceChange,
                 prediction_correct: predictionCorrect,
-                time_to_impact_hours: 24,
+                time_to_impact_hours: 120,
                 measured_at: new Date().toISOString()
               });
 

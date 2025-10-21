@@ -86,9 +86,9 @@ export const DailyPredictionReport = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Reporte de Predicciones de Hoy</CardTitle>
+            <CardTitle>Reporte de Predicciones</CardTitle>
             <CardDescription>
-              Análisis de señales generadas y validadas en las últimas 24 horas
+              Señales recientes (horizonte de 5 días) - Estándar de opciones semanales
             </CardDescription>
           </div>
           <Button 
@@ -145,10 +145,10 @@ export const DailyPredictionReport = () => {
           </Card>
         </div>
 
-        {/* Lista de Señales de Hoy */}
+        {/* Lista de Señales Recientes */}
         {todaySignals && todaySignals.length > 0 ? (
           <div>
-            <h3 className="text-lg font-semibold mb-3">Señales Generadas Hoy</h3>
+            <h3 className="text-lg font-semibold mb-3">Señales Recientes (Horizonte: 5 días)</h3>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {todaySignals.map((signal: any) => {
                 const asset = Array.isArray(signal.assets) ? signal.assets[0] : signal.assets;
@@ -208,7 +208,7 @@ export const DailyPredictionReport = () => {
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
-            No se han generado señales hoy. Ejecuta el generador de señales para obtener predicciones.
+            No hay señales recientes. Ejecuta el generador de señales para obtener predicciones (validación después de 5 días).
           </div>
         )}
 
