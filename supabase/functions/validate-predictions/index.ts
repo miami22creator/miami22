@@ -106,7 +106,7 @@ serve(async (req) => {
           .lte('posted_at', signal.created_at)
           .gte('posted_at', new Date(new Date(signal.created_at).getTime() - 24 * 60 * 60 * 1000).toISOString());
 
-        // Crear registros de correlación para cada post
+        // Crear registros de correlación para cada post (si hay posts relacionados)
         if (relatedPosts && relatedPosts.length > 0) {
           for (const post of relatedPosts) {
             const { error: corrError } = await supabaseClient
@@ -119,7 +119,9 @@ serve(async (req) => {
                 price_change_percent: priceChange,
                 prediction_correct: predictionCorrect,
                 time_to_impact_hours: 120,
-                measured_at: new Date().toISOString()
+                measured_at: new Date().toISOString(),
+                signal_type: signal.signal,
+                signal_confidence: signal.confidence
               });
 
             if (corrError) {
@@ -129,6 +131,26 @@ serve(async (req) => {
 
           // Actualizar accuracy de influencers
           await updateInfluencerAccuracy(supabaseClient, relatedPosts, predictionCorrect);
+        } else {
+          // Si no hay posts relacionados, crear correlación directa de la señal
+          const { error: corrError } = await supabaseClient
+            .from('price_correlations')
+            .insert({
+              post_id: '00000000-0000-0000-0000-000000000000', // UUID placeholder
+              asset_id: signal.asset_id,
+              price_before: signal.price,
+              price_after: currentPrice,
+              price_change_percent: priceChange,
+              prediction_correct: predictionCorrect,
+              time_to_impact_hours: 120,
+              measured_at: new Date().toISOString(),
+              signal_type: signal.signal,
+              signal_confidence: signal.confidence
+            });
+
+          if (corrError) {
+            console.error('Error saving direct signal correlation:', corrError);
+          }
         }
 
         validatedCount++;

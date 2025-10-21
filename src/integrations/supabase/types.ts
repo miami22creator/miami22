@@ -221,7 +221,10 @@ export type Database = {
           price_after: number | null
           price_before: number
           price_change_percent: number | null
+          signal_confidence: number | null
+          signal_type: string | null
           time_to_impact_hours: number | null
+          validation_timestamp: string | null
         }
         Insert: {
           asset_id: string
@@ -233,7 +236,10 @@ export type Database = {
           price_after?: number | null
           price_before: number
           price_change_percent?: number | null
+          signal_confidence?: number | null
+          signal_type?: string | null
           time_to_impact_hours?: number | null
+          validation_timestamp?: string | null
         }
         Update: {
           asset_id?: string
@@ -245,7 +251,10 @@ export type Database = {
           price_after?: number | null
           price_before?: number
           price_change_percent?: number | null
+          signal_confidence?: number | null
+          signal_type?: string | null
           time_to_impact_hours?: number | null
+          validation_timestamp?: string | null
         }
         Relationships: [
           {
@@ -417,7 +426,37 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      prediction_accuracy_by_asset: {
+        Row: {
+          accuracy_percent: number | null
+          avg_price_change: number | null
+          correct_predictions: number | null
+          name: string | null
+          symbol: string | null
+          total_predictions: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      prediction_accuracy_by_period: {
+        Row: {
+          accuracy_percent: number | null
+          correct_predictions: number | null
+          period: string | null
+          total_predictions: number | null
+        }
+        Relationships: []
+      }
+      prediction_accuracy_by_signal_type: {
+        Row: {
+          accuracy_percent: number | null
+          avg_confidence: number | null
+          correct_predictions: number | null
+          signal_type: string | null
+          total_predictions: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_all_signals: {

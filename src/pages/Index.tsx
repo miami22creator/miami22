@@ -11,6 +11,7 @@ import { InfluencersPanel } from "@/components/InfluencersPanel";
 import { PredictionAccuracyPanel } from "@/components/PredictionAccuracyPanel";
 import { AlgorithmImprovements } from "@/components/AlgorithmImprovements";
 import { DailyPredictionReport } from "@/components/DailyPredictionReport";
+import { PredictionHistoryAnalysis } from "@/components/PredictionHistoryAnalysis";
 import { useTradingSignals } from "@/hooks/useTradingData";
 import { Loader2, Target, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -273,6 +274,11 @@ const Index = () => {
               Social Media Impact
             </h2>
             <InfluencersPanel />
+          </div>
+
+          {/* Análisis Histórico Completo */}
+          <div className="mt-8">
+            <PredictionHistoryAnalysis />
           </div>
         </div>
       </main>
