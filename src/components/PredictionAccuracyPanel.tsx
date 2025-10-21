@@ -87,10 +87,7 @@ export const PredictionAccuracyPanel = () => {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Target className="w-5 h-5" />
-            Precisión del Sistema
-            <Badge variant={overallAccuracy >= 70 ? "default" : "secondary"} className="ml-2">
-              {overallAccuracy.toFixed(1)}%
-            </Badge>
+            Últimas Validaciones
           </CardTitle>
           <Button 
             onClick={handleValidateNow} 
@@ -104,19 +101,6 @@ export const PredictionAccuracyPanel = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Estadísticas generales */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Predicciones Totales</span>
-            <span className="font-semibold">{stats?.total || 0}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Predicciones Correctas</span>
-            <span className="font-semibold text-green-500">{stats?.correct || 0}</span>
-          </div>
-          <Progress value={overallAccuracy} className="h-2" />
-        </div>
-
         {/* Últimas predicciones validadas */}
         <div className="space-y-3">
           <h4 className="text-sm font-semibold">Últimas Validaciones</h4>
