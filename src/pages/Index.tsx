@@ -10,6 +10,7 @@ import { MarketNewsPanel } from "@/components/MarketNewsPanel";
 import { InfluencersPanel } from "@/components/InfluencersPanel";
 import { PredictionAccuracyPanel } from "@/components/PredictionAccuracyPanel";
 import { AlgorithmImprovements } from "@/components/AlgorithmImprovements";
+import { DailyPredictionReport } from "@/components/DailyPredictionReport";
 import { useTradingSignals } from "@/hooks/useTradingData";
 import { Loader2, Target, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -209,6 +210,8 @@ const Index = () => {
               {isValidating ? 'Validando...' : 'Validar Ahora'}
             </Button>
           </div>
+          
+          <DailyPredictionReport />
           
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
