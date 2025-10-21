@@ -13,6 +13,7 @@ export const DailyPredictionReport = () => {
   const { data: todaySignals, refetch: refetchSignals } = useQuery({
     queryKey: ['today-signals'],
     queryFn: async () => {
+      // Obtener señales del día actual (generación diaria)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
@@ -35,10 +36,12 @@ export const DailyPredictionReport = () => {
   });
 
   const { data: validations, refetch: refetchValidations } = useQuery({
-    queryKey: ['today-validations'],
+    queryKey: ['recent-validations'],
     queryFn: async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Obtener validaciones de los últimos 7 días
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
 
       const { data, error } = await supabase
         .from('price_correlations')
@@ -49,7 +52,7 @@ export const DailyPredictionReport = () => {
             name
           )
         `)
-        .gte('measured_at', today.toISOString())
+        .gte('measured_at', sevenDaysAgo.toISOString())
         .order('measured_at', { ascending: false });
 
       if (error) throw error;
@@ -86,9 +89,9 @@ export const DailyPredictionReport = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Reporte de Predicciones</CardTitle>
+            <CardTitle>Reporte de Predicciones de Hoy</CardTitle>
             <CardDescription>
-              Señales recientes (horizonte de 5 días) - Estándar de opciones semanales
+              Señales generadas hoy • Horizonte de predicción: 5 días • Validación automática después de 5 días
             </CardDescription>
           </div>
           <Button 
@@ -145,10 +148,10 @@ export const DailyPredictionReport = () => {
           </Card>
         </div>
 
-        {/* Lista de Señales Recientes */}
+        {/* Lista de Señales de Hoy */}
         {todaySignals && todaySignals.length > 0 ? (
           <div>
-            <h3 className="text-lg font-semibold mb-3">Señales Recientes (Horizonte: 5 días)</h3>
+            <h3 className="text-lg font-semibold mb-3">Señales de Hoy (Se validarán en 5 días)</h3>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {todaySignals.map((signal: any) => {
                 const asset = Array.isArray(signal.assets) ? signal.assets[0] : signal.assets;
@@ -208,14 +211,14 @@ export const DailyPredictionReport = () => {
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
-            No hay señales recientes. Ejecuta el generador de señales para obtener predicciones (validación después de 5 días).
+            No se han generado señales hoy. Las señales se generan diariamente y se validan después de 5 días.
           </div>
         )}
 
-        {/* Resultados de Validación */}
+        {/* Resultados de Validación (últimos 7 días) */}
         {validations && validations.length > 0 && (
           <div>
-            <h3 className="text-lg font-semibold mb-3">Resultados de Validación</h3>
+            <h3 className="text-lg font-semibold mb-3">Validaciones Recientes (Últimos 7 días)</h3>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {validations.map((validation: any) => {
                 const asset = Array.isArray(validation.assets) ? validation.assets[0] : validation.assets;

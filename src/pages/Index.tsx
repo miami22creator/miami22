@@ -197,7 +197,7 @@ const Index = () => {
               <div>
                 <h3 className="font-semibold">Validación de Predicciones</h3>
                 <p className="text-sm text-muted-foreground">
-                  Valida señales de hace 5 días (horizonte estándar de opciones semanales)
+                  Genera señales diarias • Valida automáticamente después de 5 días (horizonte de opciones semanales)
                 </p>
               </div>
             </div>
