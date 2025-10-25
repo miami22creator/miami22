@@ -136,7 +136,7 @@ serve(async (req) => {
           const { error: corrError } = await supabaseClient
             .from('price_correlations')
             .insert({
-              post_id: '00000000-0000-0000-0000-000000000000', // UUID placeholder
+              post_id: null, // NULL para señales generadas por algoritmo
               asset_id: signal.asset_id,
               price_before: signal.price,
               price_after: currentPrice,

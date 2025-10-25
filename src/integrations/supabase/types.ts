@@ -216,7 +216,7 @@ export type Database = {
           created_at: string
           id: string
           measured_at: string | null
-          post_id: string
+          post_id: string | null
           prediction_correct: boolean | null
           price_after: number | null
           price_before: number
@@ -231,7 +231,7 @@ export type Database = {
           created_at?: string
           id?: string
           measured_at?: string | null
-          post_id: string
+          post_id?: string | null
           prediction_correct?: boolean | null
           price_after?: number | null
           price_before: number
@@ -246,7 +246,7 @@ export type Database = {
           created_at?: string
           id?: string
           measured_at?: string | null
-          post_id?: string
+          post_id?: string | null
           prediction_correct?: boolean | null
           price_after?: number | null
           price_before?: number
@@ -459,10 +459,7 @@ export type Database = {
       }
     }
     Functions: {
-      generate_all_signals: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      generate_all_signals: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
