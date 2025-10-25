@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.validate-predictions]
 verify_jwt = false
+
+[functions.simulate-trading]
+verify_jwt = false

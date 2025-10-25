@@ -12,6 +12,7 @@ import { PredictionAccuracyPanel } from "@/components/PredictionAccuracyPanel";
 import { AlgorithmImprovements } from "@/components/AlgorithmImprovements";
 import { DailyPredictionReport } from "@/components/DailyPredictionReport";
 import { PredictionHistoryAnalysis } from "@/components/PredictionHistoryAnalysis";
+import { TradingSimulator } from "@/components/TradingSimulator";
 import { useTradingSignals } from "@/hooks/useTradingData";
 import { Loader2, Target, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -213,6 +214,8 @@ const Index = () => {
           </div>
           
           <DailyPredictionReport />
+          
+          <TradingSimulator />
           
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
