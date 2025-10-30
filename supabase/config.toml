@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.simulate-trading]
 verify_jwt = false
+
+[functions.improve-algorithm]
+verify_jwt = false

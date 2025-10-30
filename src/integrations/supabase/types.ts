@@ -52,6 +52,39 @@ export type Database = {
           },
         ]
       }
+      algorithm_improvements: {
+        Row: {
+          accuracy_after: number | null
+          accuracy_before: number | null
+          ai_recommendations: string | null
+          changes_made: Json
+          created_at: string
+          id: string
+          metrics: Json | null
+          version: string
+        }
+        Insert: {
+          accuracy_after?: number | null
+          accuracy_before?: number | null
+          ai_recommendations?: string | null
+          changes_made: Json
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          version: string
+        }
+        Update: {
+          accuracy_after?: number | null
+          accuracy_before?: number | null
+          ai_recommendations?: string | null
+          changes_made?: Json
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          version?: string
+        }
+        Relationships: []
+      }
       assets: {
         Row: {
           active: boolean | null
