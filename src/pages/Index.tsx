@@ -1,6 +1,8 @@
 import { TradingHeader } from "@/components/TradingHeader";
 import { MarketOverview } from "@/components/MarketOverview";
 import { SignalCard } from "@/components/SignalCard";
+import { RoleManagement } from "@/components/RoleManagement";
+import { useIsAdmin } from "@/hooks/useUserRole";
 import { IndicatorPanel } from "@/components/IndicatorPanel";
 import { AlertsPanel } from "@/components/AlertsPanel";
 import { ManualSignalGenerator } from "@/components/ManualSignalGenerator";
@@ -33,6 +35,7 @@ const Index = () => {
   const [selectedSignal, setSelectedSignal] = useState<any>(null);
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+  const isAdmin = useIsAdmin();
 
   // Manejar el botón atrás del navegador para cerrar el diálogo
   useEffect(() => {
@@ -261,14 +264,15 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="space-y-6">
-              <AlgorithmImprovements />
-              <TweetPublisher />
-              <PredictionAccuracyPanel />
-              <MarketNewsPanel />
-              <IndicatorPanel />
-              <AlertsPanel />
-            </div>
+          <div className="space-y-6">
+            {isAdmin && <RoleManagement />}
+            <AlgorithmImprovements />
+            <TweetPublisher />
+            <PredictionAccuracyPanel />
+            <MarketNewsPanel />
+            <IndicatorPanel />
+            <AlertsPanel />
+          </div>
           </div>
 
           {/* Panel de Influencers */}
