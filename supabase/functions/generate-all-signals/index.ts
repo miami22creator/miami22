@@ -15,7 +15,57 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Fetching active assets...');
+    console.log('Step 1: Fetching fresh market news...');
+    try {
+      await supabase.functions.invoke('fetch-market-news');
+      console.log('Market news fetched successfully');
+    } catch (error) {
+      console.error('Error fetching market news:', error);
+    }
+
+    console.log('Step 2: Fetching Seeking Alpha news...');
+    try {
+      await supabase.functions.invoke('fetch-seeking-alpha');
+      console.log('Seeking Alpha news fetched successfully');
+    } catch (error) {
+      console.error('Error fetching Seeking Alpha:', error);
+    }
+
+    console.log('Step 3: Fetching social posts...');
+    try {
+      await supabase.functions.invoke('fetch-social-posts');
+      console.log('Social posts fetched successfully');
+    } catch (error) {
+      console.error('Error fetching social posts:', error);
+    }
+
+    console.log('Step 4: Analyzing Seeking Alpha news with NLP...');
+    try {
+      // Obtener noticias de Seeking Alpha sin analizar
+      const { data: unanalyzedNews } = await supabase
+        .from('market_news')
+        .select('id')
+        .eq('source', 'seeking_alpha')
+        .is('nlp_analyzed_at', null)
+        .limit(10);
+
+      if (unanalyzedNews && unanalyzedNews.length > 0) {
+        console.log(`Analyzing ${unanalyzedNews.length} Seeking Alpha articles...`);
+        for (const news of unanalyzedNews) {
+          try {
+            await supabase.functions.invoke('analyze-news-nlp', {
+              body: { newsId: news.id }
+            });
+          } catch (error) {
+            console.error(`Error analyzing news ${news.id}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in NLP analysis step:', error);
+    }
+
+    console.log('Step 5: Fetching active assets...');
     
     // Obtener todos los activos activos
     const { data: assets, error: assetsError } = await supabase
@@ -31,6 +81,8 @@ Deno.serve(async (req) => {
     console.log(`Found ${assets?.length || 0} active assets`);
 
     const results = [];
+    
+    console.log('Step 6: Generating trading signals for each asset...');
     
     // Generar señales para cada activo
     for (const asset of assets || []) {
