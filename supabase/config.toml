@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.improve-algorithm]
 verify_jwt = false
+
+[functions.fetch-seeking-alpha]
+verify_jwt = false
