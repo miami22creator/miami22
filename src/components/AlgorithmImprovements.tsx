@@ -1,11 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Activity, Brain, Target } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
 
 export const AlgorithmImprovements = () => {
+  const queryClient = useQueryClient();
+
   const { data: improvements, isLoading } = useQuery({
     queryKey: ['algorithm-improvements'],
     queryFn: async () => {
@@ -20,6 +23,28 @@ export const AlgorithmImprovements = () => {
     },
     refetchInterval: 60000 // Refetch every minute
   });
+
+  // Suscripción en tiempo real
+  useEffect(() => {
+    const channel = supabase
+      .channel('algorithm-improvements-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'algorithm_improvements'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['algorithm-improvements'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   if (isLoading) {
     return (

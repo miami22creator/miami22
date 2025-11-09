@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,10 +27,13 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { useEffect } from 'react';
 
 const COLORS = ['#10b981', '#ef4444', '#6366f1', '#f59e0b', '#8b5cf6'];
 
 export const PredictionHistoryAnalysis = () => {
+  const queryClient = useQueryClient();
+
   // Histórico completo de predicciones
   const { data: allPredictions } = useQuery({
     queryKey: ['all-predictions-history'],
@@ -52,6 +55,31 @@ export const PredictionHistoryAnalysis = () => {
     },
     refetchInterval: 5 * 60 * 1000,
   });
+
+  // Suscripción en tiempo real para price_correlations
+  useEffect(() => {
+    const channel = supabase
+      .channel('history-correlations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'price_correlations'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['all-predictions-history'] });
+          queryClient.invalidateQueries({ queryKey: ['accuracy-by-period'] });
+          queryClient.invalidateQueries({ queryKey: ['accuracy-by-asset'] });
+          queryClient.invalidateQueries({ queryKey: ['accuracy-by-signal-type'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Accuracy por período
   const { data: accuracyByPeriod } = useQuery({

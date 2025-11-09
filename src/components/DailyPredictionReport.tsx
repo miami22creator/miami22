@@ -1,14 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export const DailyPredictionReport = () => {
   const [isValidating, setIsValidating] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: todaySignals, refetch: refetchSignals } = useQuery({
     queryKey: ['today-signals'],
@@ -59,6 +60,44 @@ export const DailyPredictionReport = () => {
       return data;
     },
   });
+
+  // Suscripciones en tiempo real
+  useEffect(() => {
+    const signalsChannel = supabase
+      .channel('daily-signals-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'trading_signals'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['today-signals'] });
+        }
+      )
+      .subscribe();
+
+    const validationsChannel = supabase
+      .channel('daily-validations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'price_correlations'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['recent-validations'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(signalsChannel);
+      supabase.removeChannel(validationsChannel);
+    };
+  }, [queryClient]);
 
   const handleValidate = async () => {
     setIsValidating(true);

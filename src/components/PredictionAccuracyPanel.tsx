@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,10 +6,11 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, Target, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const PredictionAccuracyPanel = () => {
   const [isValidating, setIsValidating] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: correlations, refetch: refetchCorrelations } = useQuery({
     queryKey: ["price-correlations"],
@@ -46,6 +47,44 @@ export const PredictionAccuracyPanel = () => {
     },
     refetchInterval: 5 * 60 * 1000,
   });
+
+  // Suscripciones en tiempo real
+  useEffect(() => {
+    const correlationsChannel = supabase
+      .channel('price-correlations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'price_correlations'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["price-correlations"] });
+        }
+      )
+      .subscribe();
+
+    const influencersChannel = supabase
+      .channel('influencers-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'influencers'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["influencers-accuracy"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(correlationsChannel);
+      supabase.removeChannel(influencersChannel);
+    };
+  }, [queryClient]);
 
   // Calcular estadísticas generales
   const stats = correlations?.reduce(
