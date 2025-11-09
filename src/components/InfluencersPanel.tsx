@@ -1,13 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Minus, ExternalLink, Building2, Landmark, User } from "lucide-react";
 import { format } from "date-fns";
+import { useEffect } from "react";
 
 export const InfluencersPanel = () => {
+  const queryClient = useQueryClient();
+  
   const { data: influencers, isLoading } = useQuery({
     queryKey: ['influencers'],
     queryFn: async () => {
@@ -39,6 +42,28 @@ export const InfluencersPanel = () => {
       return data;
     }
   });
+
+  // Suscripción en tiempo real para posts sociales
+  useEffect(() => {
+    const channel = supabase
+      .channel('social-posts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'social_posts'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['recent-social-posts'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment) {

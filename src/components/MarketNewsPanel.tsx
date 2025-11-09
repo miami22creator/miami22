@@ -1,12 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExternalLink, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format } from "date-fns";
+import { useEffect } from "react";
 
 export const MarketNewsPanel = () => {
+  const queryClient = useQueryClient();
+  
   const { data: news, isLoading } = useQuery({
     queryKey: ["market-news"],
     queryFn: async () => {
@@ -31,6 +34,28 @@ export const MarketNewsPanel = () => {
     },
     refetchInterval: 5 * 60 * 1000, // Refrescar cada 5 minutos
   });
+
+  // Suscripción en tiempo real
+  useEffect(() => {
+    const channel = supabase
+      .channel('market-news-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'market_news'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["market-news"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const getSentimentIcon = (label: string) => {
     switch (label) {
