@@ -195,6 +195,8 @@ export type Database = {
           headline: string
           id: string
           keywords: string[] | null
+          nlp_analysis: Json | null
+          nlp_analyzed_at: string | null
           published_at: string
           relevance_score: number | null
           sentiment_label: string | null
@@ -210,6 +212,8 @@ export type Database = {
           headline: string
           id?: string
           keywords?: string[] | null
+          nlp_analysis?: Json | null
+          nlp_analyzed_at?: string | null
           published_at: string
           relevance_score?: number | null
           sentiment_label?: string | null
@@ -225,6 +229,8 @@ export type Database = {
           headline?: string
           id?: string
           keywords?: string[] | null
+          nlp_analysis?: Json | null
+          nlp_analyzed_at?: string | null
           published_at?: string
           relevance_score?: number | null
           sentiment_label?: string | null
