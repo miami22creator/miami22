@@ -192,51 +192,60 @@ export type Database = {
           asset_id: string | null
           category: string | null
           created_at: string
+          external_id: string | null
           headline: string
           id: string
           keywords: string[] | null
           nlp_analysis: Json | null
           nlp_analyzed_at: string | null
           published_at: string
+          related_symbols: string[] | null
           relevance_score: number | null
           sentiment_label: string | null
           sentiment_score: number | null
           source: string
           summary: string | null
+          title: string | null
           url: string | null
         }
         Insert: {
           asset_id?: string | null
           category?: string | null
           created_at?: string
+          external_id?: string | null
           headline: string
           id?: string
           keywords?: string[] | null
           nlp_analysis?: Json | null
           nlp_analyzed_at?: string | null
           published_at: string
+          related_symbols?: string[] | null
           relevance_score?: number | null
           sentiment_label?: string | null
           sentiment_score?: number | null
           source: string
           summary?: string | null
+          title?: string | null
           url?: string | null
         }
         Update: {
           asset_id?: string | null
           category?: string | null
           created_at?: string
+          external_id?: string | null
           headline?: string
           id?: string
           keywords?: string[] | null
           nlp_analysis?: Json | null
           nlp_analyzed_at?: string | null
           published_at?: string
+          related_symbols?: string[] | null
           relevance_score?: number | null
           sentiment_label?: string | null
           sentiment_score?: number | null
           source?: string
           summary?: string | null
+          title?: string | null
           url?: string | null
         }
         Relationships: [

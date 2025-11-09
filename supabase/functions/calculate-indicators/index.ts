@@ -340,12 +340,12 @@ async function fetchSocialAndNewsImpact(supabaseClient: any, assetId: string) {
     .gte('posted_at', twoDaysAgo)
     .order('posted_at', { ascending: false });
 
-  // Obtener noticias de las últimas 24 horas
+  // Obtener noticias de las últimas 24 horas (incluyendo análisis NLP)
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   
   const { data: news } = await supabaseClient
     .from('market_news')
-    .select('sentiment_label, sentiment_score, relevance_score')
+    .select('sentiment_label, sentiment_score, relevance_score, nlp_analysis, source')
     .eq('asset_id', assetId)
     .gte('published_at', oneDayAgo)
     .order('published_at', { ascending: false });
@@ -473,36 +473,103 @@ function generateSignal(indicators: any, marketData: any, socialImpact: any) {
   if (socialImpact.news.length > 0) {
     let newsSentiment = 0;
     let newsCount = 0;
+    let nlpAnalyzedCount = 0;
 
     for (const article of socialImpact.news) {
       const relevance = article.relevance_score || 0.5;
       
-      if (article.sentiment_label === 'positive') {
-        newsSentiment += (article.sentiment_score || 0.5) * relevance;
+      // NUEVO: Análisis NLP de Seeking Alpha (tiene prioridad)
+      if (article.nlp_analysis && article.source === 'seeking_alpha') {
+        nlpAnalyzedCount++;
+        const nlp = article.nlp_analysis;
+        
+        // Mapeo de sentiment_detailed a peso numérico
+        const sentimentWeights: Record<string, number> = {
+          'very_positive': 1.0,
+          'positive': 0.6,
+          'neutral': 0.0,
+          'negative': -0.6,
+          'very_negative': -1.0
+        };
+        
+        const sentimentWeight = sentimentWeights[nlp.sentiment_detailed] || 0;
+        
+        // Mapeo de market_impact
+        const impactWeights: Record<string, number> = {
+          'high': 1.5,
+          'medium': 1.0,
+          'low': 0.5
+        };
+        
+        const impactWeight = impactWeights[nlp.market_impact] || 1.0;
+        
+        // Boost extra para categorías importantes
+        let categoryBoost = 1.0;
+        if (nlp.category === 'earnings') categoryBoost = 1.3;
+        else if (nlp.category === 'merger') categoryBoost = 1.2;
+        else if (nlp.category === 'regulation') categoryBoost = 1.15;
+        
+        // Calcular impacto total de este análisis NLP
+        const nlpImpact = sentimentWeight * impactWeight * categoryBoost * relevance;
+        
+        // Aplicar trading_signal directo
+        if (nlp.trading_signal === 'buy') {
+          if (signalType === 'CALL' || signalType === 'NEUTRAL') {
+            confidence += Math.round(12 * impactWeight * categoryBoost);
+            message += `Seeking Alpha: ${nlp.category} bullish. `;
+          }
+          newsSentiment += nlpImpact;
+        } else if (nlp.trading_signal === 'sell') {
+          if (signalType === 'PUT' || signalType === 'NEUTRAL') {
+            confidence += Math.round((marketBullish ? 8 : 12) * impactWeight);
+            message += `Seeking Alpha: ${nlp.category} bearish. `;
+          }
+          newsSentiment -= Math.abs(nlpImpact);
+        } else if (nlp.trading_signal === 'hold') {
+          // Hold reduce un poco la confianza si la señal es muy fuerte
+          if (confidence > 75) {
+            confidence -= 3;
+            message += `Seeking Alpha recomienda mantener. `;
+          }
+        }
+        
         newsCount++;
-      } else if (article.sentiment_label === 'negative') {
-        newsSentiment -= (article.sentiment_score || 0.5) * relevance;
-        newsCount++;
+      } else {
+        // Análisis tradicional para noticias sin NLP
+        if (article.sentiment_label === 'positive') {
+          newsSentiment += (article.sentiment_score || 0.5) * relevance;
+          newsCount++;
+        } else if (article.sentiment_label === 'negative') {
+          newsSentiment -= (article.sentiment_score || 0.5) * relevance;
+          newsCount++;
+        }
       }
     }
 
     if (newsCount > 0) {
       const avgNewsSentiment = newsSentiment / newsCount;
       
+      // Si tenemos análisis NLP, dar peso extra
+      const nlpBoost = nlpAnalyzedCount > 0 ? 1.2 : 1.0;
+      
       if (avgNewsSentiment > 0.2) {
         if (signalType === 'CALL' || signalType === 'NEUTRAL') {
-          confidence += 10; // Aumentado de 8
-          message += `Noticias positivas (${newsCount}). `;
+          confidence += Math.round(10 * nlpBoost);
+          if (nlpAnalyzedCount === 0) message += `Noticias positivas (${newsCount}). `;
         } else {
-          confidence -= 8; // Mayor penalización
+          confidence -= Math.round(8 * nlpBoost);
         }
       } else if (avgNewsSentiment < -0.2) {
         if (signalType === 'PUT' || signalType === 'NEUTRAL') {
-          confidence += marketBullish ? 6 : 10; // Reducido en mercado alcista
-          message += `Noticias negativas (${newsCount}). `;
+          confidence += Math.round((marketBullish ? 6 : 10) * nlpBoost);
+          if (nlpAnalyzedCount === 0) message += `Noticias negativas (${newsCount}). `;
         } else {
-          confidence -= 6;
+          confidence -= Math.round(6 * nlpBoost);
         }
+      }
+      
+      if (nlpAnalyzedCount > 0) {
+        message += `${nlpAnalyzedCount} análisis profesional(es). `;
       }
     }
   }
