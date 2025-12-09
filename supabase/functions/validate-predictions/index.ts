@@ -25,7 +25,6 @@ serve(async (req) => {
     console.log('Starting prediction validation...');
 
     // Obtener señales de hace 5 días (120 horas) para validar
-    // Las opciones semanales típicamente expiran en 5 días
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
     const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
     
@@ -75,17 +74,18 @@ serve(async (req) => {
         // Calcular cambio de precio después de 5 días
         const priceChange = ((currentPrice - signal.price) / signal.price) * 100;
         
-        // Determinar si la predicción fue correcta (horizonte de 5 días)
-        // CALL = esperamos que suba (cambio positivo > 2% en 5 días)
-        // PUT = esperamos que baje (cambio negativo < -2% en 5 días)
-        // NEUTRAL = se mantiene estable (variación < 2% en 5 días)
+        // MEJORA #2: Usar umbral dinámico basado en ATR
+        // Por ahora usamos 1.5% en lugar de 2% (más realista)
+        const threshold = getThresholdForAsset(asset.type, priceChange);
+        
+        // Determinar si la predicción fue correcta
         let predictionCorrect = false;
         
-        if (signal.signal === 'CALL' && priceChange > 2) {
+        if (signal.signal === 'CALL' && priceChange > threshold) {
           predictionCorrect = true;
-        } else if (signal.signal === 'PUT' && priceChange < -2) {
+        } else if (signal.signal === 'PUT' && priceChange < -threshold) {
           predictionCorrect = true;
-        } else if (signal.signal === 'NEUTRAL' && Math.abs(priceChange) <= 2) {
+        } else if (signal.signal === 'NEUTRAL' && Math.abs(priceChange) <= threshold) {
           predictionCorrect = true;
         }
 
@@ -95,10 +95,10 @@ serve(async (req) => {
 
         console.log(
           `${asset.symbol}: ${signal.signal} @ $${signal.price} -> $${currentPrice} ` +
-          `(${priceChange.toFixed(2)}%) = ${predictionCorrect ? 'CORRECT' : 'INCORRECT'}`
+          `(${priceChange.toFixed(2)}%, threshold: ${threshold}%) = ${predictionCorrect ? 'CORRECT' : 'INCORRECT'}`
         );
 
-        // Obtener posts sociales relacionados con este asset en el período (24h antes de la señal)
+        // Obtener posts sociales relacionados
         const { data: relatedPosts } = await supabaseClient
           .from('social_posts')
           .select('id, influencer_id, sentiment_label')
@@ -106,7 +106,7 @@ serve(async (req) => {
           .lte('posted_at', signal.created_at)
           .gte('posted_at', new Date(new Date(signal.created_at).getTime() - 24 * 60 * 60 * 1000).toISOString());
 
-        // Crear registros de correlación para cada post (si hay posts relacionados)
+        // Crear registros de correlación
         if (relatedPosts && relatedPosts.length > 0) {
           for (const post of relatedPosts) {
             const { error: corrError } = await supabaseClient
@@ -132,11 +132,11 @@ serve(async (req) => {
           // Actualizar accuracy de influencers
           await updateInfluencerAccuracy(supabaseClient, relatedPosts, predictionCorrect);
         } else {
-          // Si no hay posts relacionados, crear correlación directa de la señal
+          // Señal directa del algoritmo
           const { error: corrError } = await supabaseClient
             .from('price_correlations')
             .insert({
-              post_id: null, // NULL para señales generadas por algoritmo
+              post_id: null,
               asset_id: signal.asset_id,
               price_before: signal.price,
               price_after: currentPrice,
@@ -185,6 +185,27 @@ serve(async (req) => {
   }
 });
 
+// MEJORA: Umbral dinámico por tipo de activo
+function getThresholdForAsset(assetType: string, priceChange: number): number {
+  // Crypto es más volátil, usar umbral más alto
+  if (assetType === 'crypto') {
+    return 3.0;
+  }
+  
+  // ETFs son más estables
+  if (assetType === 'etf') {
+    return 1.0;
+  }
+  
+  // Commodities
+  if (assetType === 'commodity') {
+    return 1.5;
+  }
+  
+  // Stocks: umbral estándar reducido de 2% a 1.5%
+  return 1.5;
+}
+
 function convertToFinnhubSymbol(symbol: string, type: string): string {
   if (type === 'crypto') {
     const cryptoMap: Record<string, string> = {
@@ -202,7 +223,7 @@ async function fetchCurrentPrice(symbol: string, apiKey: string): Promise<number
     const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`;
     const response = await fetch(url);
     const data = await response.json();
-    return data.c || null; // current price
+    return data.c || null;
   } catch (error) {
     console.error(`Error fetching price for ${symbol}:`, error);
     return null;
@@ -214,7 +235,6 @@ async function updateInfluencerAccuracy(
   posts: any[], 
   wasCorrect: boolean
 ) {
-  // Agrupar posts por influencer
   const influencerPosts = new Map<string, number>();
   
   for (const post of posts) {
@@ -222,7 +242,6 @@ async function updateInfluencerAccuracy(
     influencerPosts.set(post.influencer_id, count + 1);
   }
 
-  // Actualizar cada influencer
   for (const [influencerId, postCount] of influencerPosts) {
     const { data: influencer } = await supabaseClient
       .from('influencers')
