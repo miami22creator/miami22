@@ -41,17 +41,49 @@ serve(async (req) => {
     // Obtener datos en tiempo real de Finnhub
     const marketData = await fetchFinnhubData(finnhubSymbol, FINNHUB_API_KEY);
     
+    // MEJORA #1: No generar señal si no hay datos suficientes
+    if (!marketData.hasEnoughData) {
+      console.log(`Insufficient data for ${assetSymbol}, skipping signal generation`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          skipped: true,
+          reason: 'Insufficient historical data',
+          symbol: assetSymbol
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Calcular indicadores técnicos basados en datos históricos
-    const indicators = await calculateTechnicalIndicators(marketData);
+    const indicators = calculateTechnicalIndicators(marketData);
     
     // Obtener impacto social y de noticias
     const socialImpact = await fetchSocialAndNewsImpact(supabaseClient, asset.id);
     
-    const signal = generateSignal(indicators, marketData, socialImpact);
+    // MEJORA: Obtener histórico de accuracy para este activo
+    const assetAccuracy = await getAssetAccuracy(supabaseClient, asset.id);
+    
+    const signal = generateSignal(indicators, marketData, socialImpact, assetAccuracy, asset.type);
 
     console.log(`Indicators calculated for ${assetSymbol}:`, indicators);
+    console.log(`Asset accuracy history:`, assetAccuracy);
     console.log(`Social impact:`, socialImpact);
     console.log(`Signal generated:`, signal);
+
+    // MEJORA #2: Solo guardar señal si tiene confianza suficiente y no es SKIP
+    if (signal.type === 'SKIP') {
+      console.log(`Signal skipped for ${assetSymbol}: ${signal.message}`);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          skipped: true, 
+          reason: signal.message,
+          indicators 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Guardar indicadores
     const { error: indicatorError } = await supabaseClient
@@ -82,8 +114,8 @@ serve(async (req) => {
       throw signalError;
     }
 
-    // Si hay una señal fuerte, crear alerta
-    if (signal.confidence >= 75) {
+    // Si hay una señal fuerte (MEJORA: subir umbral a 80%), crear alerta
+    if (signal.confidence >= 80) {
       await supabaseClient
         .from('alerts')
         .insert({
@@ -111,7 +143,6 @@ serve(async (req) => {
 
 // Convertir símbolos a formato Finnhub
 function convertToFinnhubSymbol(symbol: string, type: string): string {
-  // Para crypto, Finnhub usa BINANCE:SYMBOLUSDT
   if (type === 'crypto') {
     const cryptoMap: Record<string, string> = {
       'ETH': 'BINANCE:ETHUSDT',
@@ -120,24 +151,20 @@ function convertToFinnhubSymbol(symbol: string, type: string): string {
     };
     return cryptoMap[symbol] || `BINANCE:${symbol}USDT`;
   }
-  
-  // Para stocks, ETFs y commodities, usar el símbolo directamente
   return symbol;
 }
 
 // Obtener datos de Finnhub
 async function fetchFinnhubData(symbol: string, apiKey: string) {
   try {
-    // Obtener precio actual
     const quoteUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`;
     const quoteResponse = await fetch(quoteUrl);
     const quoteData = await quoteResponse.json();
 
     console.log('Quote data:', quoteData);
 
-    // Obtener datos históricos (últimos 30 días para calcular indicadores)
     const to = Math.floor(Date.now() / 1000);
-    const from = to - (30 * 24 * 60 * 60); // 30 días atrás
+    const from = to - (30 * 24 * 60 * 60);
     
     const candlesUrl = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${apiKey}`;
     const candlesResponse = await fetch(candlesUrl);
@@ -145,11 +172,13 @@ async function fetchFinnhubData(symbol: string, apiKey: string) {
 
     console.log('Candles data status:', candlesData.s);
 
-    if (candlesData.s === 'no_data') {
-      throw new Error(`No historical data available for ${symbol}`);
-    }
+    // MEJORA #1: Verificar si hay datos suficientes
+    const hasEnoughData = candlesData.s === 'ok' && 
+                          candlesData.c && 
+                          candlesData.c.length >= 14;
 
     return {
+      hasEnoughData,
       currentPrice: quoteData.c || 0,
       change: quoteData.dp || 0,
       high: quoteData.h || quoteData.c,
@@ -171,17 +200,58 @@ async function fetchFinnhubData(symbol: string, apiKey: string) {
   }
 }
 
+// MEJORA: Obtener accuracy histórico del activo
+async function getAssetAccuracy(supabaseClient: any, assetId: string) {
+  const { data } = await supabaseClient
+    .from('price_correlations')
+    .select('prediction_correct, signal_type, price_change_percent')
+    .eq('asset_id', assetId)
+    .not('prediction_correct', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (!data || data.length < 10) {
+    return { 
+      hasHistory: false, 
+      accuracy: 0,
+      avgChange: 0,
+      volatility: 'unknown',
+      callAccuracy: 0,
+      putAccuracy: 0
+    };
+  }
+
+  const correct = data.filter((d: any) => d.prediction_correct).length;
+  const calls = data.filter((d: any) => d.signal_type === 'CALL');
+  const puts = data.filter((d: any) => d.signal_type === 'PUT');
+  
+  const callCorrect = calls.filter((d: any) => d.prediction_correct).length;
+  const putCorrect = puts.filter((d: any) => d.prediction_correct).length;
+  
+  const changes = data.map((d: any) => Math.abs(d.price_change_percent || 0));
+  const avgAbsChange = changes.reduce((a: number, b: number) => a + b, 0) / changes.length;
+  
+  // Determinar volatilidad
+  let volatility = 'medium';
+  if (avgAbsChange > 5) volatility = 'high';
+  else if (avgAbsChange < 2) volatility = 'low';
+
+  return {
+    hasHistory: true,
+    accuracy: (correct / data.length) * 100,
+    avgChange: avgAbsChange,
+    volatility,
+    callAccuracy: calls.length > 0 ? (callCorrect / calls.length) * 100 : 0,
+    putAccuracy: puts.length > 0 ? (putCorrect / puts.length) * 100 : 0
+  };
+}
+
 // Calcular indicadores técnicos reales
 function calculateTechnicalIndicators(marketData: any) {
   const closes = marketData.candles.close;
   const highs = marketData.candles.high;
   const lows = marketData.candles.low;
   const volumes = marketData.candles.volume;
-
-  if (!closes || closes.length < 14) {
-    // Si no hay suficientes datos, usar datos simulados con el precio actual
-    return generateFallbackIndicators(marketData.currentPrice);
-  }
 
   // RSI (14 períodos)
   const rsi = calculateRSI(closes, 14);
@@ -190,8 +260,8 @@ function calculateTechnicalIndicators(marketData: any) {
   const macd = calculateMACD(closes);
 
   // EMAs
-  const ema50 = calculateEMA(closes, 50);
-  const ema200 = calculateEMA(closes, 200);
+  const ema50 = calculateEMA(closes, Math.min(50, closes.length));
+  const ema200 = calculateEMA(closes, Math.min(200, closes.length));
 
   // Bollinger Bands
   const bb = calculateBollingerBands(closes, 20, 2);
@@ -202,11 +272,11 @@ function calculateTechnicalIndicators(marketData: any) {
   // Volume promedio
   const avgVolume = volumes.length > 0 
     ? volumes.reduce((a: number, b: number) => a + b, 0) / volumes.length 
-    : 1000000;
+    : 0;
 
-  // OBV Change (simplificado)
+  // OBV Change
   const obvChange = volumes.length >= 2 
-    ? ((volumes[volumes.length - 1] - volumes[volumes.length - 2]) / volumes[volumes.length - 2]) 
+    ? ((volumes[volumes.length - 1] - volumes[volumes.length - 2]) / (volumes[volumes.length - 2] || 1))
     : 0;
 
   return {
@@ -219,21 +289,6 @@ function calculateTechnicalIndicators(marketData: any) {
     atr: parseFloat(atr.toFixed(4)),
     volume: Math.floor(avgVolume),
     obv_change: parseFloat(obvChange.toFixed(4))
-  };
-}
-
-// Fallback cuando no hay datos suficientes
-function generateFallbackIndicators(currentPrice: number) {
-  return {
-    rsi: parseFloat((Math.random() * 100).toFixed(2)),
-    macd: parseFloat((Math.random() - 0.5).toFixed(4)),
-    ema_50: parseFloat((currentPrice * (0.95 + Math.random() * 0.1)).toFixed(2)),
-    ema_200: parseFloat((currentPrice * (0.90 + Math.random() * 0.2)).toFixed(2)),
-    bollinger_upper: parseFloat((currentPrice * 1.02).toFixed(2)),
-    bollinger_lower: parseFloat((currentPrice * 0.98).toFixed(2)),
-    atr: parseFloat((currentPrice * 0.02).toFixed(4)),
-    volume: Math.floor(Math.random() * 10000000),
-    obv_change: parseFloat((Math.random() - 0.5).toFixed(4))
   };
 }
 
@@ -261,15 +316,15 @@ function calculateRSI(closes: number[], period: number): number {
 
 // Calcular MACD
 function calculateMACD(closes: number[]): number {
-  const ema12 = calculateEMA(closes, 12);
-  const ema26 = calculateEMA(closes, 26);
+  const ema12 = calculateEMA(closes, Math.min(12, closes.length));
+  const ema26 = calculateEMA(closes, Math.min(26, closes.length));
   return ema12 - ema26;
 }
 
 // Calcular EMA
 function calculateEMA(closes: number[], period: number): number {
   if (closes.length === 0) return 0;
-  if (closes.length < period) return closes[closes.length - 1];
+  if (closes.length < period) period = closes.length;
   
   const multiplier = 2 / (period + 1);
   let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
@@ -322,25 +377,38 @@ function calculateATR(highs: number[], lows: number[], closes: number[], period:
 
 // Obtener impacto de redes sociales y noticias
 async function fetchSocialAndNewsImpact(supabaseClient: any, assetId: string) {
-  // Obtener posts sociales de las últimas 48 horas
   const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
   
+  // MEJORA #3: Solo obtener posts de influencers con accuracy > 40%
   const { data: socialPosts } = await supabaseClient
     .from('social_posts')
     .select(`
       sentiment_label,
       sentiment_score,
       urgency_level,
-      influencers (
+      influencers!inner (
         influence_score,
-        accuracy_score
+        accuracy_score,
+        total_predictions
       )
     `)
     .eq('asset_id', assetId)
     .gte('posted_at', twoDaysAgo)
     .order('posted_at', { ascending: false });
 
-  // Obtener noticias de las últimas 24 horas (incluyendo análisis NLP)
+  // Filtrar posts de influencers con buen track record
+  const filteredPosts = (socialPosts || []).filter((post: any) => {
+    const influencer = post.influencers;
+    // Solo considerar influencers con:
+    // - Al menos 10 predicciones
+    // - Accuracy > 40% (mejor que random)
+    return influencer && 
+           influencer.total_predictions >= 10 && 
+           influencer.accuracy_score > 40;
+  });
+
+  console.log(`Filtered social posts: ${filteredPosts.length} of ${socialPosts?.length || 0} (only accuracy > 40%)`);
+
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   
   const { data: news } = await supabaseClient
@@ -351,257 +419,226 @@ async function fetchSocialAndNewsImpact(supabaseClient: any, assetId: string) {
     .order('published_at', { ascending: false });
 
   return {
-    socialPosts: socialPosts || [],
+    socialPosts: filteredPosts,
+    allSocialPosts: socialPosts?.length || 0,
+    filteredCount: filteredPosts.length,
     news: news || []
   };
 }
 
-// Generar señales basadas en indicadores + impacto social + APRENDIZAJE DE VALIDACIONES
-function generateSignal(indicators: any, marketData: any, socialImpact: any) {
+// MEJORADO: Generar señales con lógica más conservadora
+function generateSignal(
+  indicators: any, 
+  marketData: any, 
+  socialImpact: any, 
+  assetAccuracy: any,
+  assetType: string
+) {
+  // MEJORA #4: Skippear activos crypto (muy volátiles, accuracy muy bajo)
+  if (assetType === 'crypto') {
+    return {
+      type: 'SKIP',
+      confidence: 0,
+      price: marketData.currentPrice,
+      change: marketData.change,
+      message: 'Crypto assets skipped due to high volatility and low prediction accuracy'
+    };
+  }
+
+  // MEJORA: Skippear activos con accuracy histórico muy bajo
+  if (assetAccuracy.hasHistory && assetAccuracy.accuracy < 25) {
+    return {
+      type: 'SKIP',
+      confidence: 0,
+      price: marketData.currentPrice,
+      change: marketData.change,
+      message: `Asset skipped: historical accuracy ${assetAccuracy.accuracy.toFixed(1)}% is too low`
+    };
+  }
+
   let signalType = 'NEUTRAL';
   let confidence = 50;
-  let message = '';
+  let reasons: string[] = [];
   
-  // NUEVO: Detectar tendencia general del mercado (bias alcista)
+  // Tendencia del mercado
   const marketBullish = indicators.ema_50 > indicators.ema_200;
+  const currentPrice = marketData.currentPrice;
   
-  // BOOST: Aplicar bias alcista basado en datos históricos (CALLs tienen 3.6x más éxito)
-  if (marketBullish) {
-    confidence += 8; // Empezar con sesgo alcista
-    message += 'Mercado en tendencia alcista. ';
+  // MEJORA: Usar ATR para determinar volatilidad esperada
+  const atrPercent = (indicators.atr / currentPrice) * 100;
+  const isHighVolatility = atrPercent > 3;
+  
+  // Si es muy volátil, ser más conservador
+  if (isHighVolatility && assetAccuracy.volatility === 'high') {
+    confidence -= 10;
+    reasons.push('High volatility detected');
   }
 
-  // Análisis RSI (ajustado para favorecer movimientos >2%)
-  if (indicators.rsi < 30) {
+  // ===== ANÁLISIS RSI (PESO REDUCIDO) =====
+  if (indicators.rsi < 25) {
     signalType = 'CALL';
-    confidence += 18; // Aumentado de 15 - señales más fuertes
-    message += 'RSI sobreventa fuerte. ';
-  } else if (indicators.rsi > 70) {
+    confidence += 12;
+    reasons.push('RSI extreme oversold (<25)');
+  } else if (indicators.rsi < 35) {
+    if (signalType === 'NEUTRAL') signalType = 'CALL';
+    confidence += 6;
+    reasons.push('RSI oversold');
+  } else if (indicators.rsi > 75) {
     signalType = 'PUT';
-    // PENALIZACIÓN: PUTs son menos confiables en mercado alcista
-    confidence += marketBullish ? 8 : 15; // Reducido si mercado alcista
-    message += 'RSI sobrecompra. ';
+    confidence += 10;
+    reasons.push('RSI extreme overbought (>75)');
+  } else if (indicators.rsi > 65) {
+    if (signalType === 'NEUTRAL') signalType = 'PUT';
+    confidence += 5;
+    reasons.push('RSI overbought');
   }
 
-  // Análisis MACD (peso incrementado)
-  if (indicators.macd > 0) {
-    if (signalType === 'CALL') confidence += 15; // Aumentado de 10
-    if (signalType === 'NEUTRAL') {
+  // ===== ANÁLISIS MACD (PESO REDUCIDO) =====
+  const macdStrength = Math.abs(indicators.macd);
+  if (indicators.macd > 0 && macdStrength > 0.5) {
+    if (signalType === 'CALL') confidence += 8;
+    else if (signalType === 'NEUTRAL') {
       signalType = 'CALL';
-      confidence += 15;
+      confidence += 6;
     }
-    message += 'MACD positivo. ';
-  } else if (indicators.macd < 0) {
-    if (signalType === 'PUT') confidence += marketBullish ? 8 : 12; // Penalizado en alcista
-    if (signalType === 'NEUTRAL') {
+    reasons.push('MACD bullish');
+  } else if (indicators.macd < 0 && macdStrength > 0.5) {
+    if (signalType === 'PUT') confidence += 8;
+    else if (signalType === 'NEUTRAL') {
       signalType = 'PUT';
-      confidence += marketBullish ? 8 : 12;
+      confidence += 6;
     }
-    message += 'MACD negativo. ';
+    reasons.push('MACD bearish');
   }
 
-  // Análisis EMA (favorece tendencia alcista)
-  if (indicators.ema_50 > indicators.ema_200) {
-    if (signalType === 'CALL') confidence += 15; // Aumentado de 10
-    message += 'Cruce dorado activo. ';
+  // ===== ANÁLISIS EMA (PESO MODERADO) =====
+  if (marketBullish) {
+    if (signalType === 'CALL') confidence += 8;
+    else if (signalType === 'PUT') confidence -= 5;
+    reasons.push('Golden cross active');
   } else {
-    if (signalType === 'PUT') confidence += 10;
-    message += 'Cruce de muerte activo. ';
+    if (signalType === 'PUT') confidence += 8;
+    else if (signalType === 'CALL') confidence -= 5;
+    reasons.push('Death cross active');
   }
 
-  // Análisis de Redes Sociales (pesos ajustados)
-  if (socialImpact.socialPosts.length > 0) {
+  // ===== ANÁLISIS BOLLINGER (NUEVO) =====
+  if (currentPrice <= indicators.bollinger_lower) {
+    if (signalType === 'CALL') confidence += 10;
+    else if (signalType === 'NEUTRAL') {
+      signalType = 'CALL';
+      confidence += 8;
+    }
+    reasons.push('Price at lower Bollinger band');
+  } else if (currentPrice >= indicators.bollinger_upper) {
+    if (signalType === 'PUT') confidence += 10;
+    else if (signalType === 'NEUTRAL') {
+      signalType = 'PUT';
+      confidence += 8;
+    }
+    reasons.push('Price at upper Bollinger band');
+  }
+
+  // ===== ANÁLISIS REDES SOCIALES (PESO REDUCIDO, SOLO INFLUENCERS BUENOS) =====
+  if (socialImpact.filteredCount > 0) {
     let bullishCount = 0;
     let bearishCount = 0;
-    let weightedSentiment = 0;
-    let totalWeight = 0;
 
     for (const post of socialImpact.socialPosts) {
-      const influencer = post.influencers;
-      // AJUSTE: Dar menos peso a accuracy_score ya que no predice bien
-      const weight = (influencer?.influence_score || 50);
-      
-      if (post.sentiment_label === 'bullish') {
-        bullishCount++;
-        weightedSentiment += (post.sentiment_score || 0.5) * weight;
-      } else if (post.sentiment_label === 'bearish') {
-        bearishCount++;
-        weightedSentiment -= (post.sentiment_score || 0.5) * weight;
-      }
-      
-      totalWeight += weight;
+      if (post.sentiment_label === 'bullish') bullishCount++;
+      else if (post.sentiment_label === 'bearish') bearishCount++;
     }
 
-    if (totalWeight > 0) {
-      const avgSentiment = weightedSentiment / totalWeight;
-      
-      if (avgSentiment > 0.3) {
-        // Sentiment fuertemente bullish
-        if (signalType === 'CALL' || signalType === 'NEUTRAL') {
-          confidence += 15; // Aumentado de 12
-          message += `Influencers bullish (${bullishCount}). `;
-        } else {
-          // Contradice señal técnica PUT - mayor penalización
-          confidence -= 12; // Aumentado de 8
-          message += `ALERTA: técnico bajista vs influencers bullish. `;
-        }
-      } else if (avgSentiment < -0.3) {
-        // Sentiment fuertemente bearish
-        if (signalType === 'PUT' || signalType === 'NEUTRAL') {
-          // Menos boost para PUTs en general
-          confidence += marketBullish ? 8 : 12;
-          message += `Influencers bearish (${bearishCount}). `;
-        } else {
-          // Contradice señal técnica CALL
-          confidence -= 10;
-          message += `ALERTA: técnico alcista vs influencers bearish. `;
-        }
-      }
-
-      // Urgencia crítica (peso aumentado)
-      const criticalPosts = socialImpact.socialPosts.filter(
-        (p: any) => p.urgency_level === 'critical'
-      );
-      if (criticalPosts.length > 0) {
-        confidence += 8; // Aumentado de 5
-        message += `${criticalPosts.length} post(s) urgente(s). `;
-      }
+    const netSentiment = bullishCount - bearishCount;
+    
+    if (netSentiment >= 2) {
+      if (signalType === 'CALL') confidence += 5;
+      reasons.push(`Reliable influencers bullish (${bullishCount})`);
+    } else if (netSentiment <= -2) {
+      if (signalType === 'PUT') confidence += 5;
+      reasons.push(`Reliable influencers bearish (${bearishCount})`);
     }
   }
 
-  // Análisis de Noticias (pesos ajustados)
+  // ===== ANÁLISIS NOTICIAS NLP (PESO MODERADO) =====
   if (socialImpact.news.length > 0) {
-    let newsSentiment = 0;
-    let newsCount = 0;
-    let nlpAnalyzedCount = 0;
+    let nlpScore = 0;
+    let nlpCount = 0;
 
     for (const article of socialImpact.news) {
-      const relevance = article.relevance_score || 0.5;
-      
-      // NUEVO: Análisis NLP de Seeking Alpha (tiene prioridad)
       if (article.nlp_analysis && article.source === 'seeking_alpha') {
-        nlpAnalyzedCount++;
         const nlp = article.nlp_analysis;
         
-        // Mapeo de sentiment_detailed a peso numérico
-        const sentimentWeights: Record<string, number> = {
-          'very_positive': 1.0,
-          'positive': 0.6,
-          'neutral': 0.0,
-          'negative': -0.6,
-          'very_negative': -1.0
-        };
-        
-        const sentimentWeight = sentimentWeights[nlp.sentiment_detailed] || 0;
-        
-        // Mapeo de market_impact
-        const impactWeights: Record<string, number> = {
-          'high': 1.5,
-          'medium': 1.0,
-          'low': 0.5
-        };
-        
-        const impactWeight = impactWeights[nlp.market_impact] || 1.0;
-        
-        // Boost extra para categorías importantes
-        let categoryBoost = 1.0;
-        if (nlp.category === 'earnings') categoryBoost = 1.3;
-        else if (nlp.category === 'merger') categoryBoost = 1.2;
-        else if (nlp.category === 'regulation') categoryBoost = 1.15;
-        
-        // Calcular impacto total de este análisis NLP
-        const nlpImpact = sentimentWeight * impactWeight * categoryBoost * relevance;
-        
-        // Aplicar trading_signal directo
         if (nlp.trading_signal === 'buy') {
-          if (signalType === 'CALL' || signalType === 'NEUTRAL') {
-            confidence += Math.round(12 * impactWeight * categoryBoost);
-            message += `Seeking Alpha: ${nlp.category} bullish. `;
-          }
-          newsSentiment += nlpImpact;
+          nlpScore += 1;
+          nlpCount++;
         } else if (nlp.trading_signal === 'sell') {
-          if (signalType === 'PUT' || signalType === 'NEUTRAL') {
-            confidence += Math.round((marketBullish ? 8 : 12) * impactWeight);
-            message += `Seeking Alpha: ${nlp.category} bearish. `;
-          }
-          newsSentiment -= Math.abs(nlpImpact);
-        } else if (nlp.trading_signal === 'hold') {
-          // Hold reduce un poco la confianza si la señal es muy fuerte
-          if (confidence > 75) {
-            confidence -= 3;
-            message += `Seeking Alpha recomienda mantener. `;
-          }
-        }
-        
-        newsCount++;
-      } else {
-        // Análisis tradicional para noticias sin NLP
-        if (article.sentiment_label === 'positive') {
-          newsSentiment += (article.sentiment_score || 0.5) * relevance;
-          newsCount++;
-        } else if (article.sentiment_label === 'negative') {
-          newsSentiment -= (article.sentiment_score || 0.5) * relevance;
-          newsCount++;
+          nlpScore -= 1;
+          nlpCount++;
         }
       }
     }
 
-    if (newsCount > 0) {
-      const avgNewsSentiment = newsSentiment / newsCount;
+    if (nlpCount > 0) {
+      const avgNlpScore = nlpScore / nlpCount;
       
-      // Si tenemos análisis NLP, dar peso extra
-      const nlpBoost = nlpAnalyzedCount > 0 ? 1.2 : 1.0;
-      
-      if (avgNewsSentiment > 0.2) {
-        if (signalType === 'CALL' || signalType === 'NEUTRAL') {
-          confidence += Math.round(10 * nlpBoost);
-          if (nlpAnalyzedCount === 0) message += `Noticias positivas (${newsCount}). `;
-        } else {
-          confidence -= Math.round(8 * nlpBoost);
-        }
-      } else if (avgNewsSentiment < -0.2) {
-        if (signalType === 'PUT' || signalType === 'NEUTRAL') {
-          confidence += Math.round((marketBullish ? 6 : 10) * nlpBoost);
-          if (nlpAnalyzedCount === 0) message += `Noticias negativas (${newsCount}). `;
-        } else {
-          confidence -= Math.round(6 * nlpBoost);
-        }
-      }
-      
-      if (nlpAnalyzedCount > 0) {
-        message += `${nlpAnalyzedCount} análisis profesional(es). `;
+      if (avgNlpScore > 0.5) {
+        if (signalType === 'CALL') confidence += 8;
+        reasons.push('Seeking Alpha analysis bullish');
+      } else if (avgNlpScore < -0.5) {
+        if (signalType === 'PUT') confidence += 8;
+        reasons.push('Seeking Alpha analysis bearish');
       }
     }
   }
 
-  // PENALIZACIÓN FINAL: PUTs en mercado alcista
-  if (signalType === 'PUT' && marketBullish) {
-    confidence = confidence * 0.85; // Reducir 15% de confianza
-    message += 'ADVERTENCIA: PUT en tendencia alcista. ';
-  }
-  
-  // BOOST FINAL: CALLs en mercado alcista
-  if (signalType === 'CALL' && marketBullish) {
-    confidence = confidence * 1.1; // Aumentar 10% de confianza
-  }
-
-  // Determinar tipo de señal si es NEUTRAL (sesgo hacia CALL)
-  if (signalType === 'NEUTRAL') {
-    if (confidence > 52) { // Reducido de 55 para favorecer CALLs
-      signalType = 'CALL';
-    } else if (confidence < 45) {
-      signalType = 'PUT';
-    } else {
-      // En neutral, favorece CALL si hay bias alcista
-      signalType = marketBullish ? 'CALL' : 'NEUTRAL';
+  // ===== AJUSTE POR HISTORIAL DEL ACTIVO =====
+  if (assetAccuracy.hasHistory) {
+    // Si el activo tiene mejor accuracy en CALLs, favorecerlos
+    if (assetAccuracy.callAccuracy > assetAccuracy.putAccuracy + 10) {
+      if (signalType === 'CALL') confidence += 5;
+      else if (signalType === 'PUT') confidence -= 5;
+      reasons.push('Historical CALL accuracy higher');
+    } else if (assetAccuracy.putAccuracy > assetAccuracy.callAccuracy + 10) {
+      if (signalType === 'PUT') confidence += 5;
+      else if (signalType === 'CALL') confidence -= 5;
+      reasons.push('Historical PUT accuracy higher');
+    }
+    
+    // Activos muy estables -> preferir NEUTRAL
+    if (assetAccuracy.volatility === 'low' && assetAccuracy.avgChange < 1.5) {
+      if (signalType !== 'NEUTRAL') {
+        confidence -= 10;
+        reasons.push('Low volatility asset, NEUTRAL likely');
+      }
     }
   }
+
+  // ===== SEÑALES CONTRADICTORIAS =====
+  // Si RSI dice CALL pero MACD dice bearish, reducir confianza
+  if (signalType === 'CALL' && indicators.macd < -0.5) {
+    confidence -= 8;
+    reasons.push('Conflicting: RSI bullish but MACD bearish');
+  } else if (signalType === 'PUT' && indicators.macd > 0.5) {
+    confidence -= 8;
+    reasons.push('Conflicting: RSI bearish but MACD bullish');
+  }
+
+  // ===== UMBRAL MÍNIMO DE CONFIANZA =====
+  // MEJORA #5: Solo emitir señal si confianza > 65%
+  if (confidence < 65) {
+    signalType = 'NEUTRAL';
+    reasons.push('Confidence below threshold (65%)');
+  }
+
+  // Limitar confianza
+  confidence = Math.max(40, Math.min(confidence, 92));
 
   return {
     type: signalType,
-    confidence: Math.max(30, Math.min(confidence, 95)), // Ajustado rango
+    confidence,
     price: marketData.currentPrice,
     change: marketData.change,
-    message: message.trim()
+    message: reasons.join('. ')
   };
 }
